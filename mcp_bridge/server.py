@@ -35,7 +35,7 @@ async def verify_purchase_order(
         return {"status": "error", "message": "Database error"}
 
     if row is None:
-        return {"status": "not_found"}
+        return {"status": "not_found", "message": f"No PO found for {invoice_id}"}
 
     expected: float = row[0]
     diff: float = expected - amount

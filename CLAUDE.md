@@ -67,3 +67,10 @@ Invoice → api_gateway → Temporal workflow (ai_worker)
 
 - Shared data models live in `shared/schemas.py` and are imported by other packages — keep them as the single source of truth.
 - `mock_data/invoices/` holds sample invoice files for development/testing.
+
+## The "Draft -> Review -> Commit" Execution Pattern
+When asked to write or modify critical business logic (Temporal Workflows, FastAPI routes, MCP Tools), you MUST follow this exact sequence:
+1. **DRAFT (Internal):** Generate the proposed code in your scratchpad/context. Do NOT write it to the filesystem yet.
+2. **REVIEW (Tool Call):** Automatically run the checklist from `.claude/skills/code-review/SKILL.md` against your internal draft.
+3. **REFINE (Internal):** If the review highlights async I/O blocks, lack of strict Pydantic models, or Temporal non-determinism, fix the draft.
+4. **COMMIT (Disk):** Only after passing the review natively, write the final, production-ready Python code to the actual file.
