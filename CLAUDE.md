@@ -68,6 +68,12 @@ Invoice → api_gateway → Temporal workflow (ai_worker)
 - Shared data models live in `shared/schemas.py` and are imported by other packages — keep them as the single source of truth.
 - `mock_data/invoices/` holds sample invoice files for development/testing.
 
+## Anti-Patterns & Concurrency Rules
+
+1. **NEVER use global state mutation in asynchronous code** (e.g., inside `asyncio.gather`, Temporal Activities running concurrently). Global state causes race conditions when Temporal workflows run activities in parallel.
+2. **NEVER use `dspy.configure()` or `dspy.settings.configure()`**. Always inject the LM locally using `with dspy.context(lm=...):` to ensure thread-safety and avoid `RuntimeError` during parallel execution.
+3. **LM instances must be process-wide singletons** created once (thread-safe via `threading.Lock`) and shared across concurrent calls. Each call scopes its usage with `dspy.context(lm=lm)`.
+
 ## The "Draft -> Review -> Commit" Execution Pattern
 When asked to write or modify critical business logic (Temporal Workflows, FastAPI routes, MCP Tools), you MUST follow this exact sequence:
 1. **DRAFT (Internal):** Generate the proposed code in your scratchpad/context. Do NOT write it to the filesystem yet.

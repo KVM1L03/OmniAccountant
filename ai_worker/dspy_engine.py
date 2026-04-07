@@ -22,18 +22,19 @@ class InvoiceExtractionSignature(dspy.Signature):
 
 
 class InvoiceProcessor(dspy.Module):
-    """DSPy module that uses TypedPredictor for Pydantic-validated extraction."""
+    """DSPy module using shared process LM + per-call ``dspy.context`` for isolation."""
 
     def __init__(self) -> None:
         super().__init__()
         self.predictor = dspy.Predict(InvoiceExtractionSignature)
+        self.lm = get_configured_lm()
 
     def forward(self, invoice_text: str) -> dspy.Prediction:
         """Run extraction on raw invoice text and return validated InvoiceData."""
-        return self.predictor(invoice_text=invoice_text)
+        with dspy.context(lm=self.lm):
+            return self.predictor(invoice_text=invoice_text)
 
 
 def create_invoice_processor() -> InvoiceProcessor:
-    """Initialize the LLM router and return a configured InvoiceProcessor."""
-    get_configured_lm()
+    """Return an InvoiceProcessor; LM is shared (singleton) across the worker process."""
     return InvoiceProcessor()

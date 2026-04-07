@@ -8,6 +8,7 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 
 from ai_worker.activities import process_invoice_activity
+from ai_worker.llm_router import get_configured_lm
 from ai_worker.workflows import BatchReconciliationWorkflow
 
 logging.basicConfig(
@@ -22,6 +23,7 @@ TASK_QUEUE = "invoice-reconciliation-queue"
 async def main() -> None:
     """Start the Temporal worker for invoice reconciliation."""
     load_dotenv()
+    get_configured_lm()
 
     client = await Client.connect("localhost:7233")
     logger.info("Connected to Temporal at localhost:7233")
