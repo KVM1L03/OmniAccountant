@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 
 from dotenv import load_dotenv
 from temporalio.client import Client
@@ -18,6 +19,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 TASK_QUEUE = "invoice-reconciliation-queue"
+TEMPORAL_ADDRESS = os.environ.get("TEMPORAL_ADDRESS", "localhost:7233")
 
 
 async def main() -> None:
@@ -25,8 +27,8 @@ async def main() -> None:
     load_dotenv()
     get_configured_lm()
 
-    client = await Client.connect("localhost:7233")
-    logger.info("Connected to Temporal at localhost:7233")
+    client = await Client.connect(TEMPORAL_ADDRESS)
+    logger.info("Connected to Temporal at %s", TEMPORAL_ADDRESS)
 
     worker = Worker(
         client,

@@ -2,12 +2,14 @@
 
 import asyncio
 import logging
+import os
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from temporalio.client import Client, WorkflowExecutionStatus
 from temporalio.service import RPCError
 
@@ -15,18 +17,27 @@ logger = logging.getLogger(__name__)
 
 INVOICES_DIR = Path(__file__).resolve().parent.parent / "mock_data" / "invoices"
 TASK_QUEUE = "invoice-reconciliation-queue"
+TEMPORAL_ADDRESS = os.environ.get("TEMPORAL_ADDRESS", "localhost:7233")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Connect to Temporal once at startup, close on shutdown."""
-    client = await Client.connect("localhost:7233")
+    client = await Client.connect(TEMPORAL_ADDRESS)
     app.state.temporal_client = client
-    logger.info("Temporal client connected (localhost:7233)")
+    logger.info("Temporal client connected (%s)", TEMPORAL_ADDRESS)
     yield
 
 
 app = FastAPI(title="Enterprise Invoice Reconciler", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.post("/reconcile-batch", status_code=202)

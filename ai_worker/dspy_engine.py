@@ -3,6 +3,7 @@
 import logging
 
 import dspy
+from langfuse import observe
 
 from ai_worker.llm_router import get_configured_lm
 from shared.schemas import InvoiceData
@@ -29,6 +30,7 @@ class InvoiceProcessor(dspy.Module):
         self.predictor = dspy.Predict(InvoiceExtractionSignature)
         self.lm = get_configured_lm()
 
+    @observe(as_type="generation")
     def forward(self, invoice_text: str) -> dspy.Prediction:
         """Run extraction on raw invoice text and return validated InvoiceData."""
         with dspy.context(lm=self.lm):
