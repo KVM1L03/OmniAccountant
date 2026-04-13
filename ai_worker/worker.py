@@ -8,7 +8,10 @@ from dotenv import load_dotenv
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from ai_worker.activities import process_invoice_activity
+from ai_worker.activities import (
+    process_invoice_activity,
+    route_invoice_file_activity,
+)
 from ai_worker.llm_router import get_configured_lm
 from ai_worker.workflows import BatchReconciliationWorkflow
 
@@ -34,7 +37,7 @@ async def main() -> None:
         client,
         task_queue=TASK_QUEUE,
         workflows=[BatchReconciliationWorkflow],
-        activities=[process_invoice_activity],
+        activities=[process_invoice_activity, route_invoice_file_activity],
     )
 
     logger.info("Worker listening on task queue '%s'", TASK_QUEUE)

@@ -1,5 +1,6 @@
 """FastAPI gateway — triggers Temporal batch reconciliation workflows."""
 
+import asyncio
 import logging
 import os
 import uuid
@@ -7,7 +8,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from temporalio.client import Client, WorkflowExecutionStatus
 from temporalio.service import RPCError
@@ -68,6 +69,34 @@ async def reconcile_batch(request: Request) -> dict:
         "Started workflow %s with %d PDF invoices", workflow_id, len(file_paths)
     )
     return {"message": "Batch processing started", "workflow_id": workflow_id}
+
+
+@app.post("/upload-invoices", status_code=201)
+async def upload_invoices(files: list[UploadFile] = File(...)) -> dict:
+    """Save one or more uploaded PDF invoices to mock_data/invoices/."""
+    INVOICES_DIR.mkdir(parents=True, exist_ok=True)
+
+    saved: list[str] = []
+    for file in files:
+        filename = Path(file.filename or "unnamed.pdf").name
+
+        if not filename.lower().endswith(".pdf"):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Only PDF files allowed, got: {filename}",
+            )
+
+        content = await file.read()
+        target = INVOICES_DIR / filename
+        await asyncio.to_thread(target.write_bytes, content)
+        saved.append(filename)
+        logger.info("Saved uploaded file: %s (%d bytes)", filename, len(content))
+
+    return {
+        "message": f"Uploaded {len(saved)} file(s)",
+        "count": len(saved),
+        "files": saved,
+    }
 
 
 @app.get("/status/{workflow_id}")

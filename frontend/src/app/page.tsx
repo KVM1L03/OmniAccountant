@@ -11,6 +11,9 @@ import {
   Loader2,
   Inbox,
   XCircle,
+  Upload,
+  Paperclip,
+  FileText,
 } from "lucide-react";
 
 const API = "http://localhost:8000";
@@ -227,13 +230,19 @@ function EmptyState() {
 
 // ---------- Main Dashboard ----------
 
+type UploadToast = { kind: "success" | "error"; message: string };
+
 export default function DashboardPage() {
   const [workflowId, setWorkflowId] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
   const [result, setResult] = useState<WorkflowResult | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadToast, setUploadToast] = useState<UploadToast | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const stopPolling = useCallback(() => {
     if (intervalRef.current) {
@@ -242,6 +251,61 @@ export default function DashboardPage() {
     }
     setPolling(false);
   }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    setSelectedFiles(Array.from(files));
+    setUploadToast(null);
+  };
+
+  const clearSelection = () => {
+    setSelectedFiles([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const uploadFiles = async () => {
+    if (selectedFiles.length === 0) return;
+    setUploading(true);
+    setUploadToast(null);
+
+    try {
+      const formData = new FormData();
+      for (const file of selectedFiles) {
+        formData.append("files", file);
+      }
+
+      const res = await fetch(`${API}/upload-invoices`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const detail = await res.text();
+        throw new Error(`HTTP ${res.status}: ${detail}`);
+      }
+
+      const data: { count: number; files: string[] } = await res.json();
+      setUploadToast({
+        kind: "success",
+        message: `Uploaded ${data.count} file${data.count !== 1 ? "s" : ""} successfully.`,
+      });
+      clearSelection();
+    } catch (err) {
+      setUploadToast({
+        kind: "error",
+        message: err instanceof Error ? err.message : "Upload failed",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!uploadToast) return;
+    const t = setTimeout(() => setUploadToast(null), 4000);
+    return () => clearTimeout(t);
+  }, [uploadToast]);
 
   const startBatch = async () => {
     setError(null);
@@ -325,6 +389,119 @@ export default function DashboardPage() {
           value="12"
           accent="amber"
         />
+      </section>
+
+      {/* Upload Section */}
+      <section className="mb-6">
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="rounded-lg bg-indigo-50 p-2 ring-1 ring-inset ring-indigo-100">
+              <Upload className="h-5 w-5 text-indigo-600" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">
+                Upload Invoices
+              </h2>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Drop PDF files into the processing queue before running the
+                batch.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".pdf,application/pdf"
+              onChange={handleFileChange}
+              className="hidden"
+              id="invoice-upload-input"
+            />
+            <label
+              htmlFor="invoice-upload-input"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition-colors whitespace-nowrap"
+            >
+              <Paperclip className="h-4 w-4" />
+              Select PDFs
+            </label>
+
+            <button
+              onClick={uploadFiles}
+              disabled={selectedFiles.length === 0 || uploading || polling}
+              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+            >
+              {uploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Uploading…
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4" />
+                  Upload Selected Invoices
+                </>
+              )}
+            </button>
+
+            {selectedFiles.length > 0 && !uploading && (
+              <button
+                onClick={clearSelection}
+                className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {selectedFiles.length > 0 && (
+            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold text-slate-700 mb-2">
+                {selectedFiles.length} file
+                {selectedFiles.length !== 1 ? "s" : ""} selected
+              </p>
+              <ul className="space-y-1">
+                {selectedFiles.slice(0, 3).map((file, idx) => (
+                  <li
+                    key={`${file.name}-${idx}`}
+                    className="flex items-center gap-2 text-xs text-slate-600 font-mono"
+                  >
+                    <FileText className="h-3 w-3 text-slate-400 shrink-0" />
+                    <span className="truncate">{file.name}</span>
+                    <span className="text-slate-400 shrink-0">
+                      {(file.size / 1024).toFixed(1)} KB
+                    </span>
+                  </li>
+                ))}
+                {selectedFiles.length > 3 && (
+                  <li className="text-xs text-slate-500 italic pl-5">
+                    +{selectedFiles.length - 3} more…
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+
+          {uploadToast && (
+            <div
+              className={`mt-4 rounded-lg border p-3 text-sm ${
+                uploadToast.kind === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-red-200 bg-red-50 text-red-700"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {uploadToast.kind === "success" ? (
+                  <CheckCircle2 className="h-4 w-4" />
+                ) : (
+                  <XCircle className="h-4 w-4" />
+                )}
+                <span className="font-medium">{uploadToast.message}</span>
+              </div>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Action Banner */}

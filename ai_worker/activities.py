@@ -1,7 +1,10 @@
 """Temporal Activities for the invoice reconciliation pipeline."""
 
+import asyncio
 import logging
+import shutil
 from datetime import timedelta
+from pathlib import Path
 
 from temporalio import activity
 from temporalio.common import RetryPolicy
@@ -45,3 +48,34 @@ async def process_invoice_activity(file_path: str) -> dict:
     result: dict = decision.model_dump()
     logger.info("Activity complete — decision: %s", result["status"])
     return result
+
+
+APPROVED_STATUSES: frozenset[str] = frozenset({"APPROVED"})
+
+
+@activity.defn
+async def route_invoice_file_activity(file_path: str, status: str) -> str:
+    """Move a processed invoice to approved/ or discrepancy/ based on status.
+
+    APPROVED → mock_data/approved/; every other status → mock_data/discrepancy/.
+    All disk ops are offloaded via ``asyncio.to_thread`` to keep the
+    activity's event loop responsive.
+    """
+    source = Path(file_path)
+    if not source.is_file():
+        logger.error("Cannot route missing file: %s", file_path)
+        raise FileNotFoundError(f"Source file not found: {file_path}")
+
+    base_dir = source.parent.parent
+    target_dir_name = "approved" if status in APPROVED_STATUSES else "discrepancy"
+    target_dir = base_dir / target_dir_name
+
+    await asyncio.to_thread(target_dir.mkdir, parents=True, exist_ok=True)
+
+    target_path = target_dir / source.name
+    moved = await asyncio.to_thread(shutil.move, str(source), str(target_path))
+
+    logger.info(
+        "Routed %s → %s (status=%s)", source.name, target_dir_name, status
+    )
+    return str(moved)
