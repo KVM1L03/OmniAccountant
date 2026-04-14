@@ -1,16 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import {
-  LayoutDashboard,
-  Receipt,
-  GitMerge,
-  Store,
-  BarChart3,
-  LifeBuoy,
-  LogOut,
-  Landmark,
-  Plus,
-} from "lucide-react";
+import { LayoutDashboard, BarChart3, Landmark } from "lucide-react";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,15 +27,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard, active: true },
-  { href: "/invoices", label: "Invoices", icon: Receipt },
-  { href: "/reconciliation", label: "Reconciliation", icon: GitMerge },
-  { href: "/vendors", label: "Vendors", icon: Store },
   { href: "/reports", label: "Reports", icon: BarChart3 },
-];
-
-const footerNavItems: NavItem[] = [
-  { href: "/support", label: "Support", icon: LifeBuoy },
-  { href: "/logout", label: "Sign Out", icon: LogOut },
 ];
 
 export default function RootLayout({
@@ -78,12 +60,6 @@ export default function RootLayout({
                 </div>
               </div>
 
-              {/* Primary CTA — gradient */}
-              <button className="w-full bg-gradient-to-r from-[#00502e] to-[#006b3f] text-white py-2.5 px-4 rounded-md text-sm font-semibold mb-8 shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
-                <Plus className="h-4 w-4" />
-                New Invoice
-              </button>
-
               {/* Primary nav */}
               <nav className="space-y-1">
                 {navItems.map(({ href, label, icon: Icon, active }) => (
@@ -103,22 +79,10 @@ export default function RootLayout({
               </nav>
             </div>
 
-            {/* Footer nav */}
+            {/* Footer version stamp */}
             <div className="mt-auto px-6 py-8">
-              <nav className="space-y-1">
-                {footerNavItems.map(({ href, label, icon: Icon }) => (
-                  <a
-                    key={label}
-                    href={href}
-                    className="flex items-center gap-3 px-3 py-2 text-slate-600 hover:bg-slate-200/50 transition-transform hover:translate-x-1 duration-300 ease-out rounded-md text-sm font-medium"
-                  >
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </a>
-                ))}
-              </nav>
-              <p className="mt-6 px-3 text-[10px] text-slate-400 font-mono uppercase tracking-widest">
-                v0.1.0 · dev
+              <p className="px-3 text-[10px] text-slate-400 font-mono uppercase tracking-widest">
+                Version 1.0.0 · Enterprise AI
               </p>
             </div>
           </aside>

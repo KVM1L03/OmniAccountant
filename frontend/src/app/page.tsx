@@ -11,11 +11,8 @@ import {
   Paperclip,
   FileText,
   FolderOpen,
-  History,
   Search,
   SlidersHorizontal,
-  Activity,
-  LifeBuoy,
 } from "lucide-react";
 import {
   getDashboardStats,
@@ -525,10 +522,8 @@ export default function DashboardPage() {
           />
         </section>
 
-        {/* Asymmetric 12-column split: main (8) + aside (4) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* --- Main column (8) --- */}
-          <section className="lg:col-span-8 space-y-8">
+        {/* Main content — full width */}
+        <section className="space-y-8">
             {/* Upload Card */}
             <div
               className={`bg-white rounded-xl ${CARD_SHADOW} border border-slate-100 p-6`}
@@ -701,107 +696,7 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-          </section>
-
-          {/* --- Aside column (4) --- */}
-          <aside className="lg:col-span-4 space-y-6">
-            {/* Processing Health — Primary green hero card */}
-            <div className="bg-gradient-to-br from-[#00502e] to-[#006b3f] text-white p-6 rounded-xl shadow-lg relative overflow-hidden group">
-              <div className="absolute -right-6 -top-6 w-36 h-36 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-colors pointer-events-none" />
-              <div className="relative">
-                <h4 className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[#9df5bd]">
-                  Pipeline Health
-                </h4>
-                <div className="mt-4 flex items-end gap-2">
-                  <span className="text-3xl font-bold">
-                    {polling
-                      ? "Running"
-                      : error
-                        ? "Degraded"
-                        : "Stable"}
-                  </span>
-                  <span className="text-[#9df5bd]/80 text-xs pb-1">
-                    {polling ? "Workflow active" : "Normal volume"}
-                  </span>
-                </div>
-                <p className="mt-4 text-sm text-[#9df5bd] opacity-90 leading-relaxed">
-                  {error
-                    ? "Reconciliation encountered an issue. Review error log."
-                    : "System is performing within optimal parameters. DSPy extraction and ERP verification pipelines nominal."}
-                </p>
-                <div className="mt-5 flex items-center gap-2 text-xs text-[#9df5bd]/90">
-                  <Activity className="h-3.5 w-3.5" />
-                  <span className="font-mono">
-                    {polling ? "polling · 2s interval" : "idle"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Audit History — tonal recess card */}
-            <div className="bg-[#f2f4f6] p-6 rounded-xl">
-              <div className="flex items-center gap-3 mb-4">
-                <History className="h-4 w-4 text-[#004c60]" />
-                <h4 className="text-sm font-bold text-[#191c1e]">
-                  Audit History
-                </h4>
-              </div>
-              <ul className="space-y-4">
-                <li className="flex items-start gap-3">
-                  <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#00502e] shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold text-slate-700">
-                      Q3 Tax Reconciliation
-                    </p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      Completed 2 days ago
-                    </p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#00502e] shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold text-slate-700">
-                      Vendor Audit: Apex Corp
-                    </p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      Completed 5 days ago
-                    </p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-3">
-                  <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#81d9a2] shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold text-slate-700">
-                      CloudData Networks Intake
-                    </p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      Completed 1 week ago
-                    </p>
-                  </div>
-                </li>
-              </ul>
-            </div>
-
-            {/* Support Glass Card */}
-            <div className="bg-white/60 backdrop-blur-md p-5 rounded-xl border border-white/70 shadow-sm">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-[#d5e3fc] flex items-center justify-center shrink-0">
-                  <LifeBuoy className="h-5 w-5 text-[#57657a]" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-[#191c1e]">
-                    Support Needed?
-                  </h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                    Our concierge is ready to assist with complex
-                    reconciliation.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </aside>
-        </div>
+        </section>
       </div>
     </div>
   );
