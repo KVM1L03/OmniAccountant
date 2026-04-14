@@ -24,3 +24,23 @@
 
 - Finished Phase 4.
 - System is now fully resilient.
+
+## 2026-04-13 11:44 UTC - Implemented file upload + hot folder routing via Temporal
+
+**Summary:** Implemented file upload + hot folder routing via Temporal. Added POST /upload-invoices endpoint (FastAPI) saving PDFs with asyncio.to_thread + path-traversal protection. New route_invoice_file_activity moves processed PDFs to mock_data/approved/ or mock_data/discrepancy/ based on reconciliation status — uses shutil.move wrapped in asyncio.to_thread. BatchReconciliationWorkflow now two-phase: reconciliation parallel gather, then routing parallel gather with routing_indices stable mapping. Frontend: added upload UI (hidden file input + custom Select PDFs button + toast) with disable-during-polling race mitigation. Removed :ro from docker-compose mock_data mounts to enable writes. Redesigned dashboard (page.tsx) and sidebar (layout.tsx) to Editorial Enterprise palette from Stitch Corporate Dashboard Redesign: deep forest green primary #00502e, surface-layered whitespace, dramatic 3.25rem KPI display numerics, asymmetric 8/4 col grid with Pipeline Health gradient card + Audit History tonal recess + glass Support card, no-line borders (tonal shifts only), Editorial ledger table with primary-fixed chip badges, LedgerCore brand with Landmark icon and gradient New Invoice CTA in the sidebar.
+
+### Architectural Decisions Made
+
+- Implemented file upload + hot folder routing via Temporal.
+
+### Critical Bugs Resolved (Anti-Patterns avoided)
+
+- Frontend: added upload UI (hidden file input + custom Select PDFs button + toast) with disable-during-polling race mitigation.
+- Redesigned dashboard (page.tsx) and sidebar (layout.tsx) to Editorial Enterprise palette from Stitch Corporate Dashboard Redesign: deep forest green primary #00502e, surface-layered whitespace, dramatic 3.25rem KPI display numerics, asymmetric 8/4 col grid with Pipeline Health gradient card + Audit History tonal recess + glass Support card, no-line borders (tonal shifts only), Editorial ledger table with primary-fixed chip badges, LedgerCore brand with Landmark icon and gradient New Invoice CTA in the sidebar.
+
+### Current State & Next Steps
+
+- Added POST /upload-invoices endpoint (FastAPI) saving PDFs with asyncio.to_thread + path-traversal protection.
+- New route_invoice_file_activity moves processed PDFs to mock_data/approved/ or mock_data/discrepancy/ based on reconciliation status — uses shutil.move wrapped in asyncio.to_thread.
+- BatchReconciliationWorkflow now two-phase: reconciliation parallel gather, then routing parallel gather with routing_indices stable mapping.
+- Removed :ro from docker-compose mock_data mounts to enable writes.

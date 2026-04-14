@@ -2,21 +2,32 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Play,
   CheckCircle2,
   AlertTriangle,
-  Clock,
-  TrendingUp,
-  FileScan,
   Loader2,
   Inbox,
   XCircle,
   Upload,
   Paperclip,
   FileText,
+  TrendingUp,
+  FolderOpen,
+  History,
+  Search,
+  SlidersHorizontal,
+  Activity,
+  LifeBuoy,
 } from "lucide-react";
 
 const API = "http://localhost:8000";
+
+// ---------- Editorial Enterprise palette (Stitch "Corporate Dashboard Redesign") ----------
+// Primary: #00502e, primary-container: #006b3f, primary-fixed: #9df5bd
+// Surface: #f7f9fb, surface-container-low: #f2f4f6, surface-container-lowest: #ffffff
+// on-surface: #191c1e, on-surface-variant: #3f4941
+// error: #ba1a1a, error-container: #ffdad6, on-error-container: #93000a
+
+const CARD_SHADOW = "shadow-[0_12px_40px_rgba(25,28,30,0.04)]";
 
 type InvoiceResult = {
   invoice_id?: string;
@@ -34,143 +45,118 @@ type PollResponse = {
   message?: string;
 };
 
-// ---------- KPI Card ----------
+type UploadToast = { kind: "success" | "error"; message: string };
+
+// ---------- KPI Card (Editorial "Display-lg" numerics) ----------
 
 type KpiCardProps = {
-  icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
-  trend?: string;
-  trendPositive?: boolean;
-  accent: "indigo" | "emerald" | "amber";
+  accent?: "primary" | "error";
+  footer?: React.ReactNode;
 };
 
-const ACCENT_STYLES: Record<KpiCardProps["accent"], string> = {
-  indigo: "bg-indigo-50 text-indigo-600 ring-indigo-100",
-  emerald: "bg-emerald-50 text-emerald-600 ring-emerald-100",
-  amber: "bg-amber-50 text-amber-600 ring-amber-100",
-};
-
-function KpiCard({
-  icon: Icon,
-  label,
-  value,
-  trend,
-  trendPositive,
-  accent,
-}: KpiCardProps) {
+function KpiCard({ label, value, accent = "primary", footer }: KpiCardProps) {
+  const valueColor = accent === "error" ? "text-[#ba1a1a]" : "text-[#00502e]";
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex items-start justify-between">
-        <div
-          className={`rounded-lg p-2.5 ring-1 ring-inset ${ACCENT_STYLES[accent]}`}
-        >
-          <Icon className="h-5 w-5" />
-        </div>
-        {trend && (
-          <span
-            className={`inline-flex items-center gap-1 text-xs font-medium ${
-              trendPositive ? "text-emerald-600" : "text-red-600"
-            }`}
-          >
-            <TrendingUp className="h-3 w-3" />
-            {trend}
-          </span>
-        )}
-      </div>
-      <div className="mt-4">
-        <p className="text-sm font-medium text-slate-500">{label}</p>
-        <p className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
-          {value}
-        </p>
-      </div>
+    <div
+      className={`bg-white rounded-xl ${CARD_SHADOW} border border-slate-100 p-6 flex flex-col gap-1`}
+    >
+      <span className="text-[0.7rem] font-medium text-slate-500 uppercase tracking-[0.15em]">
+        {label}
+      </span>
+      <span
+        className={`text-[3.25rem] font-bold ${valueColor} leading-none mt-2 tracking-tight`}
+      >
+        {value}
+      </span>
+      <div className="mt-4">{footer}</div>
     </div>
   );
 }
 
-// ---------- Status Badge ----------
+// ---------- Status Badge (Editorial pill) ----------
 
-const STATUS_BADGE: Record<string, string> = {
-  APPROVED:
-    "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
-  DISCREPANCY:
-    "bg-amber-50 text-amber-700 ring-amber-600/20",
-  HUMAN_REVIEW_NEEDED:
-    "bg-red-50 text-red-700 ring-red-600/20",
-  SYSTEM_ERROR:
-    "bg-red-100 text-red-800 ring-red-700/30",
-  FAILED: "bg-red-100 text-red-800 ring-red-700/30",
+const STATUS_STYLES: Record<string, string> = {
+  APPROVED: "bg-[#9df5bd] text-[#00522f]",
+  DISCREPANCY: "bg-[#ffdad6] text-[#93000a]",
+  HUMAN_REVIEW_NEEDED: "bg-[#ffdad6] text-[#93000a]",
+  SYSTEM_ERROR: "bg-[#ffdad6] text-[#93000a]",
+  FAILED: "bg-[#ffdad6] text-[#93000a]",
 };
 
-const STATUS_ICON: Record<string, React.ComponentType<{ className?: string }>> =
-  {
-    APPROVED: CheckCircle2,
-    DISCREPANCY: AlertTriangle,
-    HUMAN_REVIEW_NEEDED: XCircle,
-    SYSTEM_ERROR: XCircle,
-    FAILED: XCircle,
-  };
-
 function StatusBadge({ status }: { status: string }) {
-  const cls =
-    STATUS_BADGE[status] ?? "bg-slate-100 text-slate-700 ring-slate-500/20";
-  const Icon = STATUS_ICON[status];
+  const cls = STATUS_STYLES[status] ?? "bg-slate-100 text-slate-700";
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${cls}`}
+      className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight ${cls}`}
     >
-      {Icon && <Icon className="h-3 w-3" />}
       {status.replace(/_/g, " ")}
     </span>
   );
 }
 
-// ---------- Results Table ----------
+// ---------- Results Table (Editorial Ledger) ----------
 
 function ResultsTable({ result }: { result: WorkflowResult }) {
   const rows = Object.entries(result);
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <table className="min-w-full divide-y divide-slate-200">
-        <thead className="bg-slate-50">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+    <div className="overflow-x-auto">
+      <table className="w-full text-left border-collapse">
+        <thead>
+          <tr className="bg-[#f2f4f6]">
+            <th className="px-6 py-3 text-[0.7rem] font-bold text-slate-500 uppercase tracking-wider">
               Invoice
             </th>
-            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+            <th className="px-6 py-3 text-[0.7rem] font-bold text-slate-500 uppercase tracking-wider text-right">
               Expected Amount
             </th>
-            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+            <th className="px-6 py-3 text-[0.7rem] font-bold text-slate-500 uppercase tracking-wider text-center">
               Status
             </th>
-            <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-600">
+            <th className="px-6 py-3 text-[0.7rem] font-bold text-slate-500 uppercase tracking-wider">
               Reason
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 bg-white">
+        <tbody className="divide-y divide-slate-50">
           {rows.map(([key, data]) => (
-            <tr key={key} className="hover:bg-slate-50 transition-colors">
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="font-mono text-sm font-semibold text-slate-900">
-                  {key.replace(/_/g, " ").toUpperCase()}
-                </div>
-                {data.invoice_id && (
-                  <div className="text-xs text-slate-500 font-mono mt-0.5">
-                    {data.invoice_id}
+            <tr
+              key={key}
+              className="hover:bg-slate-50/50 transition-colors"
+            >
+              <td className="px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded bg-[#9df5bd] flex items-center justify-center shrink-0">
+                    <FileText className="h-4 w-4 text-[#00522f]" />
                   </div>
-                )}
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-[#191c1e] truncate">
+                      {data.invoice_id ?? key.replace(/_/g, " ").toUpperCase()}
+                    </div>
+                    {data.invoice_id && (
+                      <div className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">
+                        {key.replace(/_/g, " ")}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 font-mono">
+              <td className="px-6 py-4 text-right text-sm font-medium text-slate-700 font-mono">
                 {data.erp_expected_amount != null
-                  ? `$${data.erp_expected_amount.toFixed(2)}`
+                  ? `$${data.erp_expected_amount.toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}`
                   : "—"}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap">
+              <td className="px-6 py-4 text-center">
                 <StatusBadge status={data.status} />
               </td>
-              <td className="px-6 py-4 text-sm text-slate-600 max-w-md">
-                {data.reason ?? data.error ?? "—"}
+              <td className="px-6 py-4 text-sm text-slate-600 max-w-xs">
+                {data.reason ?? data.error ?? (
+                  <span className="text-slate-400 italic">—</span>
+                )}
               </td>
             </tr>
           ))}
@@ -184,16 +170,14 @@ function ResultsTable({ result }: { result: WorkflowResult }) {
 
 function LoadingSkeleton() {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-12 shadow-sm">
+    <div className="p-12">
       <div className="flex flex-col items-center justify-center gap-4">
-        <div className="relative">
-          <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
-        </div>
+        <Loader2 className="h-10 w-10 animate-spin text-[#00502e]" />
         <div className="text-center">
-          <p className="text-sm font-semibold text-slate-900">
+          <p className="text-sm font-semibold text-[#191c1e]">
             Processing invoices
           </p>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-[#3f4941]">
             Running DSPy extraction and ERP verification…
           </p>
         </div>
@@ -201,7 +185,7 @@ function LoadingSkeleton() {
           {[0, 1, 2].map((i) => (
             <div
               key={i}
-              className="h-10 rounded-lg bg-slate-100 animate-pulse"
+              className="h-10 rounded-lg bg-[#f2f4f6] animate-pulse"
               style={{ animationDelay: `${i * 150}ms` }}
             />
           ))}
@@ -215,22 +199,23 @@ function LoadingSkeleton() {
 
 function EmptyState() {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center">
-      <Inbox className="mx-auto h-10 w-10 text-slate-400" />
-      <p className="mt-3 text-sm font-semibold text-slate-900">
+    <div className="p-12 text-center">
+      <Inbox className="mx-auto h-10 w-10 text-slate-300" />
+      <p className="mt-3 text-sm font-semibold text-[#191c1e]">
         No batches yet
       </p>
-      <p className="mt-1 text-xs text-slate-500">
-        Click <span className="font-semibold">Scan & Process Directory</span>{" "}
-        above to reconcile the sample invoices.
+      <p className="mt-1 text-xs text-[#3f4941] max-w-sm mx-auto">
+        Upload PDFs above and click{" "}
+        <span className="font-semibold text-[#00502e]">
+          Scan &amp; Process Directory
+        </span>{" "}
+        to reconcile.
       </p>
     </div>
   );
 }
 
 // ---------- Main Dashboard ----------
-
-type UploadToast = { kind: "success" | "error"; message: string };
 
 export default function DashboardPage() {
   const [workflowId, setWorkflowId] = useState<string | null>(null);
@@ -352,228 +337,371 @@ export default function DashboardPage() {
     return () => stopPolling();
   }, [polling, workflowId, stopPolling]);
 
+  // Derived metrics for KPIs
+  const resultEntries = result ? Object.values(result) : [];
+  const approvedCount = resultEntries.filter((r) => r.status === "APPROVED").length;
+  const totalCount = resultEntries.length;
+  const successRate =
+    totalCount > 0 ? ((approvedCount / totalCount) * 100).toFixed(1) : "94.3";
+  const pendingCount = resultEntries.filter(
+    (r) => r.status !== "APPROVED" && r.status !== "SYSTEM_ERROR"
+  ).length;
+
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-          Invoice Reconciliation Hub
-        </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Trigger batch reconciliation workflows and monitor their progress in
-          real time.
-        </p>
-      </header>
-
-      {/* KPI Cards */}
-      <section className="grid grid-cols-1 gap-6 sm:grid-cols-3 mb-8">
-        <KpiCard
-          icon={FileScan}
-          label="Batches Processed"
-          value="247"
-          trend="+12% this week"
-          trendPositive
-          accent="indigo"
-        />
-        <KpiCard
-          icon={CheckCircle2}
-          label="Success Rate"
-          value="94.3%"
-          trend="+2.1%"
-          trendPositive
-          accent="emerald"
-        />
-        <KpiCard
-          icon={Clock}
-          label="Pending Reviews"
-          value="12"
-          accent="amber"
-        />
-      </section>
-
-      {/* Upload Section */}
-      <section className="mb-6">
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start gap-3 mb-4">
-            <div className="rounded-lg bg-indigo-50 p-2 ring-1 ring-inset ring-indigo-100">
-              <Upload className="h-5 w-5 text-indigo-600" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold text-slate-900">
-                Upload Invoices
-              </h2>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Drop PDF files into the processing queue before running the
-                batch.
-              </p>
-            </div>
+    <div className="bg-[#f7f9fb] min-h-full text-[#191c1e] font-['Inter',system-ui,sans-serif]">
+      <div className="px-10 py-10 max-w-[1600px] mx-auto">
+        {/* Header — editorial asymmetry */}
+        <header className="mb-10 flex justify-between items-end gap-6 flex-wrap">
+          <div className="max-w-2xl">
+            <h1 className="text-[1.75rem] font-semibold text-[#191c1e] tracking-tight leading-tight">
+              Invoice Reconciliation Hub
+            </h1>
+            <p className="text-[#3f4941] mt-2 text-sm max-w-lg leading-relaxed">
+              Centralized oversight for cross-referencing ledger entries
+              against vendor documentation. Maintain accuracy and integrity
+              in your financial pipeline.
+            </p>
           </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept=".pdf,application/pdf"
-              onChange={handleFileChange}
-              className="hidden"
-              id="invoice-upload-input"
-            />
-            <label
-              htmlFor="invoice-upload-input"
-              className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 transition-colors whitespace-nowrap"
-            >
-              <Paperclip className="h-4 w-4" />
-              Select PDFs
-            </label>
-
-            <button
-              onClick={uploadFiles}
-              disabled={selectedFiles.length === 0 || uploading || polling}
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-            >
-              {uploading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Uploading…
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4" />
-                  Upload Selected Invoices
-                </>
-              )}
-            </button>
-
-            {selectedFiles.length > 0 && !uploading && (
-              <button
-                onClick={clearSelection}
-                className="text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2"
-              >
-                Clear
-              </button>
+          <button
+            onClick={startBatch}
+            disabled={polling}
+            className="bg-gradient-to-r from-[#00502e] to-[#006b3f] text-white px-6 py-2.5 rounded-md text-sm font-semibold flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+          >
+            {polling ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Processing…
+              </>
+            ) : (
+              <>
+                <FolderOpen className="h-4 w-4" />
+                Scan &amp; Process Directory
+              </>
             )}
-          </div>
+          </button>
+        </header>
 
-          {selectedFiles.length > 0 && (
-            <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-700 mb-2">
-                {selectedFiles.length} file
-                {selectedFiles.length !== 1 ? "s" : ""} selected
-              </p>
-              <ul className="space-y-1">
-                {selectedFiles.slice(0, 3).map((file, idx) => (
-                  <li
-                    key={`${file.name}-${idx}`}
-                    className="flex items-center gap-2 text-xs text-slate-600 font-mono"
-                  >
-                    <FileText className="h-3 w-3 text-slate-400 shrink-0" />
-                    <span className="truncate">{file.name}</span>
-                    <span className="text-slate-400 shrink-0">
-                      {(file.size / 1024).toFixed(1)} KB
-                    </span>
-                  </li>
-                ))}
-                {selectedFiles.length > 3 && (
-                  <li className="text-xs text-slate-500 italic pl-5">
-                    +{selectedFiles.length - 3} more…
-                  </li>
-                )}
-              </ul>
-            </div>
-          )}
+        {/* KPI Row — Tonal Layering with dramatic display numerics */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <KpiCard
+            label="Batches Processed"
+            value={totalCount > 0 ? String(totalCount) : "247"}
+            footer={
+              <div className="flex items-center gap-1 text-[#00502e] text-xs font-semibold">
+                <TrendingUp className="h-3 w-3" />
+                +12% from last month
+              </div>
+            }
+          />
+          <KpiCard
+            label="Success Rate"
+            value={`${successRate}%`}
+            footer={
+              <div className="w-full bg-[#f2f4f6] h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="bg-[#00502e] h-full transition-all duration-500"
+                  style={{ width: `${successRate}%` }}
+                />
+              </div>
+            }
+          />
+          <KpiCard
+            label="Pending Reviews"
+            value={totalCount > 0 ? String(pendingCount) : "12"}
+            accent={pendingCount > 0 || totalCount === 0 ? "error" : "primary"}
+            footer={
+              pendingCount > 0 || totalCount === 0 ? (
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-[#ba1a1a] animate-pulse" />
+                  <span className="text-xs text-[#ba1a1a] font-medium">
+                    Critical attention required
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-3 w-3 text-[#00502e]" />
+                  <span className="text-xs text-[#00502e] font-medium">
+                    All clear
+                  </span>
+                </div>
+              )
+            }
+          />
+        </section>
 
-          {uploadToast && (
+        {/* Asymmetric 12-column split: main (8) + aside (4) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* --- Main column (8) --- */}
+          <section className="lg:col-span-8 space-y-8">
+            {/* Upload Card */}
             <div
-              className={`mt-4 rounded-lg border p-3 text-sm ${
-                uploadToast.kind === "success"
-                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  : "border-red-200 bg-red-50 text-red-700"
-              }`}
+              className={`bg-white rounded-xl ${CARD_SHADOW} border border-slate-100 p-6`}
             >
-              <div className="flex items-center gap-2">
-                {uploadToast.kind === "success" ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : (
-                  <XCircle className="h-4 w-4" />
+              <div className="flex items-start gap-3 mb-5">
+                <div className="rounded-lg bg-[#9df5bd] p-2 flex items-center justify-center">
+                  <Upload className="h-5 w-5 text-[#00522f]" />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-[#191c1e]">
+                    Upload Invoices
+                  </h2>
+                  <p className="mt-0.5 text-xs text-[#3f4941]">
+                    Drop PDF files into the processing queue before running
+                    the batch.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,application/pdf"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="invoice-upload-input"
+                />
+                <label
+                  htmlFor="invoice-upload-input"
+                  className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-[#e6e8ea] px-4 py-2.5 text-sm font-semibold text-[#191c1e] hover:bg-[#dcdedf] transition-colors whitespace-nowrap"
+                >
+                  <Paperclip className="h-4 w-4" />
+                  Select PDFs
+                </label>
+
+                <button
+                  onClick={uploadFiles}
+                  disabled={
+                    selectedFiles.length === 0 || uploading || polling
+                  }
+                  className="inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-[#00502e] to-[#006b3f] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Uploading…
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" />
+                      Upload Selected Invoices
+                    </>
+                  )}
+                </button>
+
+                {selectedFiles.length > 0 && !uploading && (
+                  <button
+                    onClick={clearSelection}
+                    className="text-xs font-medium text-slate-500 hover:text-[#00502e] underline underline-offset-2"
+                  >
+                    Clear
+                  </button>
                 )}
-                <span className="font-medium">{uploadToast.message}</span>
+              </div>
+
+              {selectedFiles.length > 0 && (
+                <div className="mt-4 rounded-lg bg-[#f2f4f6] p-3">
+                  <p className="text-[0.7rem] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                    {selectedFiles.length} file
+                    {selectedFiles.length !== 1 ? "s" : ""} selected
+                  </p>
+                  <ul className="space-y-1">
+                    {selectedFiles.slice(0, 3).map((file, idx) => (
+                      <li
+                        key={`${file.name}-${idx}`}
+                        className="flex items-center gap-2 text-xs text-slate-700 font-mono"
+                      >
+                        <FileText className="h-3 w-3 text-slate-400 shrink-0" />
+                        <span className="truncate">{file.name}</span>
+                        <span className="text-slate-400 shrink-0">
+                          {(file.size / 1024).toFixed(1)} KB
+                        </span>
+                      </li>
+                    ))}
+                    {selectedFiles.length > 3 && (
+                      <li className="text-xs text-slate-500 italic pl-5">
+                        +{selectedFiles.length - 3} more…
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              {uploadToast && (
+                <div
+                  className={`mt-4 rounded-md p-3 text-sm ${
+                    uploadToast.kind === "success"
+                      ? "bg-[#9df5bd] text-[#00522f]"
+                      : "bg-[#ffdad6] text-[#93000a]"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {uploadToast.kind === "success" ? (
+                      <CheckCircle2 className="h-4 w-4" />
+                    ) : (
+                      <XCircle className="h-4 w-4" />
+                    )}
+                    <span className="font-semibold">{uploadToast.message}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Workflow ID strip */}
+            {workflowId && (
+              <div className="flex items-center gap-2 text-xs text-[#3f4941] font-mono -mt-4">
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#00502e] animate-pulse" />
+                Workflow ID: {workflowId}
+                {status && !result && <span>· Status: {status}</span>}
+              </div>
+            )}
+
+            {/* Error strip */}
+            {error && (
+              <div className="bg-[#ffdad6] text-[#93000a] rounded-md p-4 text-sm">
+                <div className="flex items-center gap-2 font-semibold">
+                  <AlertTriangle className="h-4 w-4" />
+                  Error
+                </div>
+                <div className="mt-1 font-mono text-xs">{error}</div>
+              </div>
+            )}
+
+            {/* Results Table Card */}
+            <div
+              className={`bg-white rounded-xl ${CARD_SHADOW} border border-slate-100 overflow-hidden`}
+            >
+              <div className="px-6 py-5 border-b border-slate-50 flex justify-between items-center">
+                <h3 className="text-base font-semibold text-[#191c1e]">
+                  Recent Batch Results
+                </h3>
+                <div className="flex items-center gap-3">
+                  {result && (
+                    <span className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">
+                      {Object.keys(result).length} invoice
+                      {Object.keys(result).length !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                  <SlidersHorizontal className="h-4 w-4 text-slate-400 cursor-pointer hover:text-[#00502e] transition-colors" />
+                  <Search className="h-4 w-4 text-slate-400 cursor-pointer hover:text-[#00502e] transition-colors" />
+                </div>
+              </div>
+
+              {polling && <LoadingSkeleton />}
+              {!polling && result && <ResultsTable result={result} />}
+              {!polling && !result && !error && <EmptyState />}
+
+              {result && (
+                <div className="px-6 py-4 bg-slate-50/30 flex justify-center border-t border-slate-50">
+                  <button className="text-[#00502e] text-xs font-bold hover:underline tracking-widest uppercase">
+                    View All Transactions
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* --- Aside column (4) --- */}
+          <aside className="lg:col-span-4 space-y-6">
+            {/* Processing Health — Primary green hero card */}
+            <div className="bg-gradient-to-br from-[#00502e] to-[#006b3f] text-white p-6 rounded-xl shadow-lg relative overflow-hidden group">
+              <div className="absolute -right-6 -top-6 w-36 h-36 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-colors pointer-events-none" />
+              <div className="relative">
+                <h4 className="text-[0.7rem] font-semibold uppercase tracking-[0.15em] text-[#9df5bd]">
+                  Pipeline Health
+                </h4>
+                <div className="mt-4 flex items-end gap-2">
+                  <span className="text-3xl font-bold">
+                    {polling
+                      ? "Running"
+                      : error
+                        ? "Degraded"
+                        : "Stable"}
+                  </span>
+                  <span className="text-[#9df5bd]/80 text-xs pb-1">
+                    {polling ? "Workflow active" : "Normal volume"}
+                  </span>
+                </div>
+                <p className="mt-4 text-sm text-[#9df5bd] opacity-90 leading-relaxed">
+                  {error
+                    ? "Reconciliation encountered an issue. Review error log."
+                    : "System is performing within optimal parameters. DSPy extraction and ERP verification pipelines nominal."}
+                </p>
+                <div className="mt-5 flex items-center gap-2 text-xs text-[#9df5bd]/90">
+                  <Activity className="h-3.5 w-3.5" />
+                  <span className="font-mono">
+                    {polling ? "polling · 2s interval" : "idle"}
+                  </span>
+                </div>
               </div>
             </div>
-          )}
-        </div>
-      </section>
 
-      {/* Action Banner */}
-      <section className="mb-8">
-        <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-indigo-600 via-indigo-600 to-purple-600 p-8 shadow-lg shadow-indigo-600/20">
-          <div className="absolute inset-0 bg-grid-white/5 [mask-image:linear-gradient(0deg,transparent,black)]" />
-          <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-white">
-                Ready to reconcile
-              </h2>
-              <p className="mt-1 text-sm text-indigo-100 max-w-lg">
-                Scans <span className="font-mono">mock_data/invoices/</span>{" "}
-                for PDF invoices, extracts structured data via DSPy, verifies
-                against ERP, and routes decisions — all in parallel via
-                Temporal.
-              </p>
+            {/* Audit History — tonal recess card */}
+            <div className="bg-[#f2f4f6] p-6 rounded-xl">
+              <div className="flex items-center gap-3 mb-4">
+                <History className="h-4 w-4 text-[#004c60]" />
+                <h4 className="text-sm font-bold text-[#191c1e]">
+                  Audit History
+                </h4>
+              </div>
+              <ul className="space-y-4">
+                <li className="flex items-start gap-3">
+                  <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#00502e] shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">
+                      Q3 Tax Reconciliation
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Completed 2 days ago
+                    </p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#00502e] shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">
+                      Vendor Audit: Apex Corp
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Completed 5 days ago
+                    </p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#81d9a2] shrink-0" />
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">
+                      CloudData Networks Intake
+                    </p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Completed 1 week ago
+                    </p>
+                  </div>
+                </li>
+              </ul>
             </div>
-            <button
-              onClick={startBatch}
-              disabled={polling}
-              className="inline-flex items-center gap-2 rounded-lg bg-white px-6 py-3 text-sm font-semibold text-indigo-700 shadow-md hover:bg-indigo-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-            >
-              {polling ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Processing…
-                </>
-              ) : (
-                <>
-                  <Play className="h-4 w-4" />
-                  Scan &amp; Process Directory
-                </>
-              )}
-            </button>
-          </div>
+
+            {/* Support Glass Card */}
+            <div className="bg-white/60 backdrop-blur-md p-5 rounded-xl border border-white/70 shadow-sm">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-[#d5e3fc] flex items-center justify-center shrink-0">
+                  <LifeBuoy className="h-5 w-5 text-[#57657a]" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-[#191c1e]">
+                    Support Needed?
+                  </h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                    Our concierge is ready to assist with complex
+                    reconciliation.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
-
-        {workflowId && (
-          <div className="mt-3 flex items-center gap-2 text-xs text-slate-500 font-mono">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
-            Workflow ID: {workflowId}
-            {status && !result && <span>· Status: {status}</span>}
-          </div>
-        )}
-      </section>
-
-      {/* Results */}
-      <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Recent Batch Results
-          </h2>
-          {result && (
-            <span className="text-xs text-slate-500">
-              {Object.keys(result).length} invoice
-              {Object.keys(result).length !== 1 ? "s" : ""}
-            </span>
-          )}
-        </div>
-
-        {error && (
-          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            <div className="font-semibold">Error</div>
-            <div className="mt-1 font-mono text-xs">{error}</div>
-          </div>
-        )}
-
-        {polling && <LoadingSkeleton />}
-        {!polling && result && <ResultsTable result={result} />}
-        {!polling && !result && !error && <EmptyState />}
-      </section>
+      </div>
     </div>
   );
 }
