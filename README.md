@@ -93,6 +93,29 @@ You'll need the following installed on your machine:
 
 ---
 
+## ⚡ Quick Start (TL;DR)
+
+**One command to rule them all:**
+
+```bash
+make dev
+```
+
+This:
+1. Installs all dependencies (`uv sync`, `npm ci`)
+2. Seeds mock data (`seed_data.py`)
+3. Brings up the full Docker stack (Temporal, Postgres, FastAPI, worker)
+4. Starts the Next.js dev server in the foreground
+
+Then open:
+- **Dashboard:** http://localhost:3000
+- **Temporal UI:** http://localhost:8085
+- **API Docs:** http://localhost:8000/docs
+
+---
+
+## 📖 Step-by-step setup (if you prefer manual control)
+
 ### Step 1 — Configure environment variables
 
 Create a `.env` file in the **project root** (used by FastAPI and the AI worker via Docker `env_file`):
@@ -122,13 +145,33 @@ DATABASE_URL="postgresql://temporal:temporal@localhost:5432/temporal?schema=app"
 
 ---
 
-### Step 2 — Seed the data ⚠️ **(Run this first!)**
-
-Before bringing up Docker, generate the mock invoices and seed the ERP database:
+### Step 2 — Install dependencies
 
 ```bash
-uv sync                          # Install Python dependencies
-uv run python seed_data.py       # Generate PDFs + populate erp_mock.db
+make install
+```
+
+Or manually:
+
+```bash
+uv sync
+cd frontend && npm ci
+```
+
+---
+
+### Step 3 — Seed the data ⚠️ **(Critical!)**
+
+Generate the mock invoices and seed the ERP database:
+
+```bash
+make seed
+```
+
+Or manually:
+
+```bash
+uv run python seed_data.py
 ```
 
 This script:
@@ -139,7 +182,13 @@ This script:
 
 ---
 
-### Step 3 — Start the backend
+### Step 4 — Start the backend
+
+```bash
+make up-build
+```
+
+Or manually:
 
 ```bash
 docker compose up --build -d
@@ -158,15 +207,21 @@ This brings up the full backend stack:
 Wait ~20 seconds for Temporal to finish provisioning, then verify health:
 
 ```bash
-docker compose ps
+make ps
 curl http://localhost:8000/health
 ```
 
 ---
 
-### Step 4 — Start the frontend
+### Step 5 — Start the frontend
 
 In a separate terminal:
+
+```bash
+make frontend
+```
+
+Or manually:
 
 ```bash
 cd frontend
@@ -180,7 +235,7 @@ npm run dev
 
 ---
 
-### Step 5 — Open the dashboard
+### Step 6 — Open the dashboard
 
 You're live! 🎉
 
@@ -237,7 +292,26 @@ You're live! 🎉
 
 ---
 
-## 🛠️ Common commands
+## 🛠️ Makefile targets
+
+The `Makefile` provides shortcuts for common workflows:
+
+| Command | Description |
+|---|---|
+| `make dev` | **Full stack in one command** — seeds, brings up Docker, starts Next.js (TL;DR) |
+| `make install` | Install all dependencies (`uv sync` + `npm ci`) |
+| `make seed` | Regenerate mock PDFs + `erp_mock.db` |
+| `make up` | Start Docker stack without rebuild |
+| `make up-build` | Start Docker stack with rebuild |
+| `make down` | Stop all containers (volumes preserved) |
+| `make frontend` | Run Next.js dev server only (assumes Docker stack is running) |
+| `make logs` | Follow Docker Compose logs |
+| `make ps` | List running containers |
+| `make db-push` | Generate Prisma client + sync schema to Postgres |
+
+---
+
+## 🔧 Common commands (without Makefile)
 
 ```bash
 # Backend
@@ -256,6 +330,7 @@ npm run dev                         # Next.js dev server
 npm run lint                        # ESLint
 npx prisma studio                   # Visual DB browser at localhost:5555
 npx prisma db push                  # Sync schema to Postgres
+npx prisma generate                 # Generate Prisma client types
 ```
 
 ---
