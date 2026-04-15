@@ -5,6 +5,7 @@ import type {
   DashboardStats,
   OverrideResponse,
   OverrideStatus,
+  PaginatedBatches,
   SaveBatchResponse,
   WorkflowResult,
 } from "@/types";
@@ -13,6 +14,7 @@ export type {
   DashboardStats,
   OverrideResponse,
   OverrideStatus,
+  PaginatedBatches,
   SaveBatchResponse,
   WorkflowResult,
 } from "@/types";
@@ -57,12 +59,27 @@ export async function saveBatchResult(
   }
 }
 
-export async function getRecentBatches() {
-  return prisma.batch.findMany({
-    take: 5,
-    orderBy: { createdAt: "desc" },
-    include: { invoices: true },
-  });
+export async function getRecentBatches(
+  page: number = 1,
+  pageSize: number = 1,
+): Promise<PaginatedBatches> {
+  const safePage = Math.max(1, Math.floor(page));
+  const safePageSize = Math.max(1, Math.floor(pageSize));
+
+  const [totalCount, batches] = await Promise.all([
+    prisma.batch.count(),
+    prisma.batch.findMany({
+      skip: (safePage - 1) * safePageSize,
+      take: safePageSize,
+      orderBy: { createdAt: "desc" },
+      include: { invoices: true },
+    }),
+  ]);
+
+  const totalPages = totalCount === 0 ? 0 : Math.ceil(totalCount / safePageSize);
+  const currentPage = totalPages === 0 ? 1 : Math.min(safePage, totalPages);
+
+  return { batches, totalPages, currentPage };
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {

@@ -1,131 +1,14 @@
 "use client";
 
-import {
-  AlertTriangle,
-  Eye,
-  FileText,
-  Inbox,
-  Loader2,
-  Trash2,
-} from "lucide-react";
+import { AlertTriangle, Inbox, Loader2, Trash2 } from "lucide-react";
 
 import type { RecentBatch, ReviewTarget, WorkflowResult } from "@/types";
 
+import { Pagination } from "./Pagination";
+import { ResultsTable } from "./ResultsTable";
+import { StatusBadge } from "./StatusBadge";
+
 const CARD_SHADOW = "shadow-[0_12px_40px_rgba(25,28,30,0.04)]";
-
-const STATUS_STYLES: Record<string, string> = {
-  APPROVED: "bg-[#9df5bd] text-[#00522f]",
-  FORCE_APPROVED: "bg-[#9df5bd] text-[#00522f]",
-  DISCREPANCY: "bg-[#ffdad6] text-[#93000a]",
-  HUMAN_REVIEW_NEEDED: "bg-[#ffdad6] text-[#93000a]",
-  SYSTEM_ERROR: "bg-[#ffdad6] text-[#93000a]",
-  FAILED: "bg-[#ffdad6] text-[#93000a]",
-  REJECTED: "bg-[#ffdad6] text-[#93000a]",
-};
-
-function StatusBadge({ status }: { status: string }) {
-  const cls = STATUS_STYLES[status] ?? "bg-slate-100 text-slate-700";
-  return (
-    <span
-      className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-tight ${cls}`}
-    >
-      {status.replace(/_/g, " ")}
-    </span>
-  );
-}
-
-type ResultsTableProps = {
-  result: WorkflowResult;
-  onReview?: (row: ReviewTarget) => void;
-};
-
-function ResultsTable({ result, onReview }: ResultsTableProps) {
-  const rows = Object.entries(result);
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left border-collapse">
-        <thead>
-          <tr className="bg-[#f2f4f6]">
-            <th className="px-6 py-3 text-[0.7rem] font-bold text-slate-500 uppercase tracking-wider">
-              Invoice
-            </th>
-            <th className="px-6 py-3 text-[0.7rem] font-bold text-slate-500 uppercase tracking-wider text-right">
-              Expected Amount
-            </th>
-            <th className="px-6 py-3 text-[0.7rem] font-bold text-slate-500 uppercase tracking-wider text-center">
-              Status
-            </th>
-            <th className="px-6 py-3 text-[0.7rem] font-bold text-slate-500 uppercase tracking-wider">
-              Reason
-            </th>
-            {onReview && (
-              <th className="px-6 py-3 text-[0.7rem] font-bold text-slate-500 uppercase tracking-wider text-center">
-                Actions
-              </th>
-            )}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-50">
-          {rows.map(([key, data]) => (
-            <tr key={key} className="hover:bg-slate-50/50 transition-colors">
-              <td className="px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded bg-[#9df5bd] flex items-center justify-center shrink-0">
-                    <FileText className="h-4 w-4 text-[#00522f]" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-[#191c1e] truncate">
-                      {data.invoice_id ?? key.replace(/_/g, " ").toUpperCase()}
-                    </div>
-                    {data.invoice_id && (
-                      <div className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">
-                        {key.replace(/_/g, " ")}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </td>
-              <td className="px-6 py-4 text-right text-sm font-medium text-slate-700 font-mono">
-                {data.erp_expected_amount != null
-                  ? `$${data.erp_expected_amount.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}`
-                  : "—"}
-              </td>
-              <td className="px-6 py-4 text-center">
-                <StatusBadge status={data.status} />
-              </td>
-              <td className="px-6 py-4 text-sm text-slate-600 max-w-xs">
-                {data.reason ?? data.error ?? (
-                  <span className="text-slate-400 italic">—</span>
-                )}
-              </td>
-              {onReview && (
-                <td className="px-6 py-4 text-center">
-                  {data.status === "DISCREPANCY" && data.id ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onReview({ ...data, id: data.id as string })
-                      }
-                      className="inline-flex items-center gap-1.5 rounded-md bg-[#00502e] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-[#006b3f] transition-colors"
-                    >
-                      <Eye className="h-3 w-3" />
-                      Review
-                    </button>
-                  ) : (
-                    <span className="text-slate-300">—</span>
-                  )}
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 function batchToWorkflowResult(batch: RecentBatch): WorkflowResult {
   const result: WorkflowResult = {};
@@ -143,7 +26,7 @@ function batchToWorkflowResult(batch: RecentBatch): WorkflowResult {
 
 type BatchHistoryListProps = {
   batches: RecentBatch[];
-  onReview?: (row: ReviewTarget) => void;
+  onReview: (row: ReviewTarget) => void;
 };
 
 function BatchHistoryList({ batches, onReview }: BatchHistoryListProps) {
@@ -226,6 +109,9 @@ export type BatchTableProps = {
   error: string | null;
   workflowId: string | null;
   status: string | null;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
   onReview: (row: ReviewTarget) => void;
   onClearHistory: () => void;
 };
@@ -237,9 +123,16 @@ export function BatchTable({
   error,
   workflowId,
   status,
+  currentPage,
+  totalPages,
+  onPageChange,
   onReview,
   onClearHistory,
 }: BatchTableProps) {
+  const showHistory = !polling && !result && recentBatches.length > 0;
+  const showEmpty =
+    !polling && !result && recentBatches.length === 0 && !error;
+
   return (
     <>
       {workflowId && (
@@ -274,10 +167,6 @@ export function BatchTable({
                 {Object.keys(result).length !== 1 ? "s" : ""}
               </span>
             )}
-            {/* TODO: Wire up batch results filter and search (UI placeholders only for now).
-            <SlidersHorizontal className="h-4 w-4 text-slate-400 cursor-pointer hover:text-[#00502e] transition-colors" />
-            <Search className="h-4 w-4 text-slate-400 cursor-pointer hover:text-[#00502e] transition-colors" />
-            */}
             <button
               type="button"
               onClick={onClearHistory}
@@ -293,21 +182,19 @@ export function BatchTable({
 
         {polling && <LoadingSkeleton />}
         {!polling && result && <ResultsTable result={result} />}
-        {!polling && !result && recentBatches.length > 0 && (
+        {showHistory && (
           <BatchHistoryList batches={recentBatches} onReview={onReview} />
         )}
-        {!polling && !result && recentBatches.length === 0 && !error && (
-          <EmptyState />
-        )}
+        {showEmpty && <EmptyState />}
 
-        {result && (
-          <div className="px-6 py-4 bg-slate-50/30 flex justify-center border-t border-slate-50">
-            <button
-              type="button"
-              className="text-[#00502e] text-xs font-bold hover:underline tracking-widest uppercase"
-            >
-              View All Transactions
-            </button>
+        {showHistory && totalPages > 1 && (
+          <div className="px-6 py-4 bg-slate-50/30 border-t border-slate-50">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={onPageChange}
+              disabled={polling}
+            />
           </div>
         )}
       </div>

@@ -46,3 +46,9 @@ export type OverrideStatus = "FORCE_APPROVED" | "REJECTED";
 export type OverrideResponse = { ok: boolean; error?: string };
 
 export type RecentBatch = Batch & { invoices: Invoice[] };
+
+export type PaginatedBatches = {
+  batches: RecentBatch[];
+  totalPages: number;
+  currentPage: number;
+};

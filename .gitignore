@@ -1,16 +1,89 @@
-# Python-generated files
+# --- Python / uv ---
 __pycache__/
-*.py[oc]
+*.py[cod]
+*$py.class
+*.so
+.Python
 build/
 dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
 wheels/
-*.egg-info
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+.venv/
+venv/
+ENV/
+env/
+
+# Test / type / lint caches
 .pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+.tox/
+.nox/
 
-# Virtual environments
-.venv
-
-# Environment variables
+# --- Secrets and local environment ---
 .env
+.env.*
+!.env.example
 
+# direnv
+.envrc
+
+# --- Project artifacts ---
+# SQLite mock ERP (regenerate: `uv run python seed_data.py` or `uv run python -m mcp_bridge.init_db`)
+mcp_bridge/erp_mock.db
+mcp_bridge/*.db-journal
+
+# Generated invoice PDFs (seed / worker output)
 mock_data/**/*.pdf
+
+# --- Tools & IDEs ---
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# Cursor local project metadata (keep team rules in-repo if you add them under a tracked path)
+.cursor/
+
+# --- Logs & temp ---
+*.log
+logs/
+tmp/
+temp/
+.cache/
+
+# --- Docker (local-only overrides) ---
+docker-compose.override.yml
+compose.override.yml
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Notebooks ---
+.ipynb_checkpoints/

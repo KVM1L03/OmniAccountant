@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+*.lcov
 
 # next.js
 /.next/
@@ -40,3 +41,19 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# eslint
+.eslintcache
+
+# prisma (local scratch / old migrate artifacts if any)
+prisma/*.db
+prisma/*.db-journal
+
+# Playwright / e2e (if added later)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Sentry CLI local config
+.sentryclirc

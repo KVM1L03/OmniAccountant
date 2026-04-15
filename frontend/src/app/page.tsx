@@ -21,6 +21,8 @@ import type {
   WorkflowResult,
 } from "@/types";
 
+const PAGE_SIZE = 1;
+
 const API = "http://localhost:8000";
 
 export default function DashboardPage() {
@@ -30,28 +32,44 @@ export default function DashboardPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [recentBatches, setRecentBatches] = useState<RecentBatch[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(
     null,
   );
   const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const reloadPersistedDashboard = useCallback(async () => {
+  const loadDashboard = useCallback(async (page: number) => {
     try {
-      const [batches, stats] = await Promise.all([
-        getRecentBatches(),
+      const [paginated, stats] = await Promise.all([
+        getRecentBatches(page, PAGE_SIZE),
         getDashboardStats(),
       ]);
-      setRecentBatches(batches);
+      setRecentBatches(paginated.batches);
+      setTotalPages(paginated.totalPages);
+      setCurrentPage(paginated.currentPage);
       setDashboardStats(stats);
     } catch (err) {
       console.error("Failed to load batch history:", err);
     }
   }, []);
 
+  const reloadPersistedDashboard = useCallback(
+    () => loadDashboard(currentPage),
+    [loadDashboard, currentPage],
+  );
+
   useEffect(() => {
-    void reloadPersistedDashboard();
-  }, [reloadPersistedDashboard]);
+    void loadDashboard(1);
+  }, [loadDashboard]);
+
+  const handlePageChange = useCallback(
+    (page: number) => {
+      void loadDashboard(page);
+    },
+    [loadDashboard],
+  );
 
   const stopPolling = useCallback(() => {
     if (intervalRef.current) {
@@ -78,11 +96,11 @@ export default function DashboardPage() {
     const res = await clearAllBatches();
     if (res.ok) {
       setResult(null);
-      await reloadPersistedDashboard();
+      await loadDashboard(1);
     } else {
       console.error("Failed to clear batch history:", res.error);
     }
-  }, [reloadPersistedDashboard]);
+  }, [loadDashboard]);
 
   const startBatch = async () => {
     setError(null);
@@ -118,7 +136,7 @@ export default function DashboardPage() {
           if (workflowId) {
             const saveRes = await saveBatchResult(workflowId, data.result);
             if (saveRes.ok) {
-              await reloadPersistedDashboard();
+              await loadDashboard(1);
               setResult(null);
             } else {
               console.error("Failed to persist batch:", saveRes.error);
@@ -136,7 +154,7 @@ export default function DashboardPage() {
 
     intervalRef.current = setInterval(poll, 2000);
     return () => stopPolling();
-  }, [polling, workflowId, stopPolling, reloadPersistedDashboard]);
+  }, [polling, workflowId, stopPolling, loadDashboard]);
 
   const resultEntries = result ? Object.values(result) : [];
   const liveApproved = resultEntries.filter((r) => r.status === "APPROVED").length;
@@ -216,6 +234,9 @@ export default function DashboardPage() {
             error={error}
             workflowId={workflowId}
             status={status}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
             onReview={openReview}
             onClearHistory={() => void handleClearHistory()}
           />
