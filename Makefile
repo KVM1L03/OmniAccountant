@@ -3,14 +3,15 @@
 
 ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
-.PHONY: help install seed up up-build down dev frontend logs ps db-push postgres-wait langfuse-db-create
+.PHONY: help bootstrap install seed up up-build down dev frontend logs ps db-push postgres-wait langfuse-db-create
 
 .DEFAULT_GOAL := help
 
 help:
 	@echo "Enterprise Invoice Reconciler"
 	@echo ""
-	@echo "  make dev        — full Docker stack (rebuild) then Next.js dev server"
+	@echo "  make bootstrap  — FIRST RUN: install deps + seed + full stack + frontend"
+	@echo "  make dev        — daily: full Docker stack (rebuild) then Next.js dev server"
 	@echo "  make install    — uv sync + npm ci (frontend)"
 	@echo "  make seed       — regenerate mock PDFs + erp_mock.db"
 	@echo "  make up         — Postgres + ensure DB langfuse, then docker compose up -d"
@@ -33,6 +34,10 @@ help:
 	@echo "Backend:  root .env — LLM keys + LANGFUSE_* (PUBLIC_KEY/SECRET_KEY from Langfuse project,"
 	@echo "          LANGFUSE_NEXTAUTH_SECRET, LANGFUSE_SALT, LANGFUSE_ENCRYPTION_KEY, optional"
 	@echo "          LANGFUSE_REDIS_AUTH, LANGFUSE_MINIO_ROOT_PASSWORD, LANGFUSE_CLICKHOUSE_*)."
+
+# First-run target: fresh clone to running app in one command.
+# `dev` at the end blocks on `npm run dev`, so run in foreground.
+bootstrap: install seed dev
 
 install:
 	cd "$(ROOT)" && uv sync

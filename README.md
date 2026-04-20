@@ -99,22 +99,30 @@ You'll need the following installed on your machine:
 
 ## ⚡ Quick Start (TL;DR)
 
-**One command to rule them all:**
+**Fresh clone — one command:**
+
+```bash
+cp .env.example .env    # then paste your LLM API key(s)
+make bootstrap
+```
+
+`make bootstrap` runs `install` → `seed` → `up-build` → `npm run dev` in sequence:
+1. Installs all dependencies (`uv sync`, `npm ci`)
+2. Seeds mock data (`seed_data.py` — generates PDFs + `erp_mock.db`)
+3. Brings up the full Docker stack (Temporal, Postgres, FastAPI, AI worker, Langfuse + its deps)
+4. Starts the Next.js dev server in the foreground
+
+**Subsequent runs** — deps and seed are already in place:
 
 ```bash
 make dev
 ```
 
-This:
-1. Installs all dependencies (`uv sync`, `npm ci`)
-2. Seeds mock data (`seed_data.py`)
-3. Brings up the full Docker stack (Temporal, Postgres, FastAPI, worker)
-4. Starts the Next.js dev server in the foreground
-
 Then open:
 - **Dashboard:** http://localhost:3000
 - **Temporal UI:** http://localhost:8085
 - **API Docs:** http://localhost:8000/docs
+- **Langfuse:** http://localhost:3030
 
 ---
 
@@ -144,13 +152,14 @@ LANGFUSE_ENCRYPTION_KEY=<64 hex chars>
 TEMPORAL_ADDRESS=temporal:7233
 ```
 
-Create `frontend/.env` for Prisma to reach Postgres (the same container Temporal uses, but isolated in its own SQL schema):
+Create `frontend/.env.local` for Prisma to reach Postgres (the same container Temporal uses, but in a dedicated database):
 
 ```bash
-DATABASE_URL="postgresql://temporal:temporal@localhost:5432/temporal?schema=app"
+DATABASE_URL="postgresql://temporal:temporal@localhost:5432/invoice_app"
+API_GATEWAY_URL="http://localhost:8000"
 ```
 
-> 💡 The frontend uses a dedicated `app` schema so it doesn't collide with Temporal's internal tables in the `public` schema.
+> 💡 `invoice_app` is a separate database on the shared Postgres container (distinct from Temporal's `temporal` DB and Langfuse's `langfuse` DB). Prisma 7's `db push` creates it automatically on first run using the `createdb` grant that the `temporal` user has — no manual SQL required.
 
 ---
 
@@ -207,14 +216,20 @@ This brings up the full backend stack:
 
 | Service | Description | Port |
 |---|---|---|
-| `postgres` | PostgreSQL 16 (Temporal + Prisma `app` schema + Langfuse) | `5432` |
+| `postgres` | PostgreSQL 16 (Temporal + `invoice_app` + `langfuse` databases) | `5432` |
 | `temporal` | Temporal server | `7233` (gRPC) |
 | `temporal-ui` | Temporal Web UI | `8085` |
+| `temporal-admin-setup` | One-shot: registers the `default` namespace | — |
 | `api-gateway` | FastAPI HTTP layer | `8000` |
 | `ai-worker` | Temporal worker (DSPy + LangGraph + MCP) | — |
-| `langfuse` | LLM observability (self-hosted) | `3030` |
+| `langfuse` | LLM observability UI (self-hosted) | `3030` |
+| `langfuse-worker` | Langfuse async event ingestion worker | — |
+| `clickhouse` | OLAP store for Langfuse traces/observations | — |
+| `redis` | Queue / cache for Langfuse | — |
+| `minio` | S3-compatible object store for Langfuse events/media | `9090` (API) / `9091` (console) |
+| `minio-setup` | One-shot: creates the `langfuse` bucket in MinIO | — |
 
-Wait ~20 seconds for Temporal to finish provisioning, then verify health:
+Wait ~20 seconds for Temporal and Langfuse to finish provisioning, then verify health:
 
 ```bash
 make ps
@@ -260,29 +275,19 @@ You're live! 🎉
 
 ### Langfuse self-hosted setup
 
-Langfuse runs as a Docker service on port **3030** (to avoid conflicting with Next.js on port 3000). It shares the existing Postgres container but uses a separate `langfuse` database.
-
-**First-time setup (existing Postgres volume):**
-
-The Langfuse database needs to be created manually if your Postgres volume already exists:
-
-```bash
-docker exec -it $(docker compose ps -q postgres) psql -U temporal -c "CREATE DATABASE langfuse;"
-```
-
-**For fresh installs:** The init script at `docker/postgres/init/` handles this automatically.
+Langfuse runs as a Docker service on port **3030** (to avoid conflicting with Next.js on port 3000). It shares the existing Postgres container but uses a separate `langfuse` database, which `make up` / `make up-build` create idempotently via the `langfuse-db-create` target (see `Makefile`).
 
 **After Langfuse starts:**
 
-1. Open **http://localhost:3030** and create an account
+1. Open **http://localhost:3030** and create an admin account. Sign-up is disabled after the first account (`AUTH_DISABLE_SIGNUP=true` in `docker-compose.yml`) — to add more users, temporarily flip it off.
 2. Create a new project and generate API keys
 3. Update `.env` with the new `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY`
 4. Restart the backend: `docker compose restart api-gateway ai-worker`
 
-Generate proper secrets for production-like setups:
+Generate the container-side Langfuse secrets once (they must stay stable — rotating them invalidates existing sessions and encrypted data):
 
 ```bash
-# Replace placeholder values in .env
+# Write each into .env
 openssl rand -hex 32  # → LANGFUSE_NEXTAUTH_SECRET
 openssl rand -hex 32  # → LANGFUSE_SALT
 openssl rand -hex 32  # → LANGFUSE_ENCRYPTION_KEY (must be 64 hex chars)
@@ -311,8 +316,9 @@ openssl rand -hex 32  # → LANGFUSE_ENCRYPTION_KEY (must be 64 hex chars)
 │   ├── workflows.py        # Deterministic batch reconciliation workflow
 │   ├── activities.py       # Side-effecting activities (PDF parse, LLM, routing)
 │   ├── dspy_engine.py      # DSPy module — structured invoice extraction
-│   ├── agent_graph.py      # LangGraph agent — ERP reconciliation decisions
-│   └── llm_router.py       # Thread-safe LM singleton + Langfuse instrumentation
+│   ├── agent_graph.py      # LangGraph agent — ERP reconciliation + span redaction
+│   ├── llm_router.py       # Thread-safe LM singleton (primary + fast fallback chain)
+│   └── worker.py           # Temporal worker entrypoint + OpenInference instrumentation
 ├── mcp_bridge/             # Zero-trust ERP integration
 │   ├── server.py           # FastMCP server exposing ERP lookups as tools
 │   ├── init_db.py          # Bootstraps the SQLite schema
@@ -341,7 +347,8 @@ The `Makefile` provides shortcuts for common workflows:
 
 | Command | Description |
 |---|---|
-| `make dev` | **Full stack in one command** — seeds, brings up Docker, starts Next.js (TL;DR) |
+| `make bootstrap` | **First run from fresh clone** — install + seed + up-build + frontend |
+| `make dev` | Daily use — Docker stack (rebuild) + Next.js dev server |
 | `make install` | Install all dependencies (`uv sync` + `npm ci`) |
 | `make seed` | Regenerate mock PDFs + `erp_mock.db` |
 | `make up` | Start Docker stack without rebuild |
