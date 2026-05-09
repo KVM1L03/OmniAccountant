@@ -8,9 +8,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from ai_worker.dspy_engine import create_invoice_processor
-from shared.pdf_utils import extract_text_from_pdf
-from shared.schemas import InvoiceData
+from ai_worker.dspy_engine import create_invoice_processor  # noqa: E402
+from shared.pdf_utils import extract_text_from_pdf  # noqa: E402
+from shared.schemas import InvoiceData  # noqa: E402
 
 HAS_VERTEX_AI = (
     os.environ.get("LLM_PROVIDER", "vertex_ai") == "vertex_ai"

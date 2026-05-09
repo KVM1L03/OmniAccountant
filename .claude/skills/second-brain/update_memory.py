@@ -62,10 +62,10 @@ def build_entry(summary: str) -> str:
         f"\n**Summary:** {summary}\n"
         f"\n### Architectural Decisions Made\n"
         f"\n" + "\n".join(decisions) + "\n"
-        f"\n### Critical Bugs Resolved (Anti-Patterns avoided)\n"
-        f"\n" + "\n".join(bugs) + "\n"
-        f"\n### Current State & Next Steps\n"
-        f"\n" + "\n".join(state) + "\n"
+        "\n### Critical Bugs Resolved (Anti-Patterns avoided)\n"
+        "\n" + "\n".join(bugs) + "\n"
+        "\n### Current State & Next Steps\n"
+        "\n" + "\n".join(state) + "\n"
     )
 
 
