@@ -1,0 +1,27 @@
+INVOICE
+
+Invoice ID: INV-2026-001
+Invoice Number: INV-2026-001
+Date: 2026-03-15
+Due Date: 2026-04-14
+
+From:
+CloudFront Hosting LLC
+123 Cloud Street, San Francisco, CA 94105
+Tax ID: 94-1234567
+
+To:
+Acme Corp
+456 Enterprise Blvd, New York, NY 10001
+
+Description                              Qty    Unit Price    Amount
+---------------------------------------------------------------------
+Cloud Hosting - Premium Tier Q1 2026      1      $5,000.00    $5,000.00
+CDN Bandwidth Overage - March 2026        1        $425.00      $425.00
+---------------------------------------------------------------------
+                                               Subtotal:     $5,425.00
+                                               Tax (0%):         $0.00
+                                               TOTAL DUE:    $5,425.00
+
+Payment Terms: Net 30
+Bank: First National Bank | Account: 987654321 | Routing: 021000021
