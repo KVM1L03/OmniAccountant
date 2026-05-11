@@ -7,6 +7,9 @@
 # - It has no Dockerfile and we don't want to maintain one just for Railway.
 # - Nixpacks auto-detects Next.js 16 + npm and runs `npm ci && npm run build`.
 # - Prisma's "postinstall" hook generates the client during install.
+#
+# ``nixpacks.toml`` in this directory pins a fresh nixpkgs archive so
+# ``NIXPACKS_NODE_VERSION=22`` resolves to a Prisma-compatible patch (>= 22.12).
 
 [build]
 builder = "NIXPACKS"
@@ -16,6 +19,9 @@ builder = "NIXPACKS"
 [deploy]
 # `npm start` runs `next start` which respects $PORT (Next.js 13+ default).
 startCommand = "npm start"
+# Requires ``DATABASE_URL`` (Railway Postgres reference) so Prisma schema
+# matches the DB before the app boots.
+preDeployCommand = ["npx", "prisma", "db", "push"]
 
 # Next.js serves a 200 at the root once boot is complete. If you add a
 # dedicated /api/health route later, point this at it.

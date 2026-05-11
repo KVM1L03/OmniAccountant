@@ -14,9 +14,13 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Railway injects $PORT — bind uvicorn to it. The 0.0.0.0 host is required
-# for the platform's reverse proxy to reach the container.
-startCommand = "uv run uvicorn api_gateway.main:app --host 0.0.0.0 --port $PORT"
+# Railway sets PORT in the environment. Uvicorn is invoked directly from
+# Dockerfile CMD startCommand and does not treat ``$PORT`` as shell
+# substitution, so wrap in ``sh`` with double quotes for expansion.
+#
+# Ai-worker must override startCommand in Railway (dashboard) to ``uv run
+# python -m ai_worker.worker`` since this file targets the gateway only.
+startCommand = "sh -c \"exec uv run uvicorn api_gateway.main:app --host 0.0.0.0 --port ${PORT}\""
 
 # /docs is FastAPI's Swagger UI — always 200 once the app boots. A
 # dedicated /healthz is the right long-term move; /docs is fine to ship.

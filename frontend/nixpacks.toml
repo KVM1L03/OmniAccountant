@@ -1,0 +1,14 @@
+# Nixpacks build plan overlay for Railway.
+#
+# Railway's bundled nixpkgs snapshot can expose Node.js 22.11.x for
+# ``NIXPACKS_NODE_VERSION=22``, while Prisma 7 requires Node ^20.19,
+# ^22.12+, or >=24. Pinning a newer nixpkgs archive restores a compatible
+# patch release (nodejs 22.x in this revision is >= 22.12).
+#
+# References: https://nixpacks.com/docs/configuration/file
+
+[variables]
+NIXPACKS_NODE_VERSION = "22"
+
+[phases.setup]
+nixpkgsArchive = "549bd84d6279f9852cae6225e372cc67fb91a4c1"
