@@ -16,7 +16,7 @@ from ai_worker.activities import (
 from ai_worker.llm_router import get_configured_lm
 from ai_worker.otel_scrubber import install_pii_scrubber
 from ai_worker.workflows import BatchReconciliationWorkflow
-from shared.temporal_connect import connect_temporal_client
+from shared.temporal_connect import connect_temporal_worker_client
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,7 +44,7 @@ async def main() -> None:
 
     get_configured_lm()
 
-    client = await connect_temporal_client()
+    client = await connect_temporal_worker_client()
 
     worker = Worker(
         client,

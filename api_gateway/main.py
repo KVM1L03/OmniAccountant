@@ -111,7 +111,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     await asyncio.to_thread(init_db)
 
-    client = await connect_temporal_client()
+    client = await connect_temporal_client(lazy=True)
     app.state.temporal_client = client
     logger.info("Temporal client ready")
 

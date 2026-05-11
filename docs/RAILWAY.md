@@ -60,6 +60,20 @@ start command. In the dashboard:
 No healthcheck path for the worker — Railway treats long-running processes
 that don't bind a port as healthy by default.
 
+### Self-hosted Temporal on Railway (fourth service)
+
+If you run ``temporalio/auto-setup`` plus a Railway Postgres dedicated to Temporal:
+
+1. Enable **private networking** on **api-gateway**, **ai-worker**, and **temporal**.
+   Plain ``TCP timeout`` to ``*.railway.internal:7233`` with working DNS usually
+   means the mesh path is blocked or Temporal is not listening on ``7233``.
+2. Set ``TEMPORAL_ADDRESS`` via a variable reference such as
+   ``${{temporal.RAILWAY_PRIVATE_DOMAIN}}:7233`` (use your Temporal service name).
+3. **API gateway** uses Temporal's ``lazy=True`` client: ``/docs`` can succeed before
+   the first gRPC handshake; workflow starts open the channel.
+   **Worker** retries connect with ``TEMPORAL_CONNECT_RETRIES`` (default ``36``)
+   and ``TEMPORAL_CONNECT_RETRY_DELAY`` seconds (default ``5``).
+
 ## 3. Attach the persistent volume (api-gateway only)
 
 The api-gateway writes:
@@ -127,6 +141,8 @@ Mirror **Temporal**, **Langfuse/demo**, and **tracing** variables from ``api-gat
 | `DATA_DIR` | required | `/app/data` (same volume mount as gateway) |
 | ``LLM_PROVIDER`` | required | ``vertex_ai`` or ``api_keys`` — see ``ai_worker/llm_router.py`` |
 | ``GEMINI_API_KEY`` / Vertex / OpenAI… | required | Provider credentials per ``LLM_PROVIDER`` |
+| ``TEMPORAL_CONNECT_RETRIES`` | optional | Default ``36`` — worker backoff when Temporal boots slowly |
+| ``TEMPORAL_CONNECT_RETRY_DELAY`` | optional | Default ``5`` (seconds between attempts) |
 
 ### `frontend`
 
@@ -148,9 +164,9 @@ from the frontend service:
 
 > frontend → Variables → New → "Add Reference" → `DATABASE_URL` ← Postgres plugin
 
-When using **Railway config-as-code**, ``frontend/railway.toml`` already defines
-``preDeployCommand`` for ``npx prisma db push``. Only add it manually in the
-dashboard if your service ignores the repo config.
+When using **Railway config-as-code**, ``frontend/railway.toml`` defines
+``preDeployCommand`` as a **single-shell string** (Railway rejects argv-style arrays
+here). Duplicate the command manually in the dashboard only if deploy omits repo config.
 
 This applies `frontend/prisma/schema.prisma` (including the `Batch.sessionId`
 column added for demo isolation) on every deploy. Safe — `db push` is
@@ -168,10 +184,13 @@ open https://<frontend-url>                # dashboard renders
 # Click "Scan & Process Directory" → batch should reach COMPLETED in <60s
 ```
 
-If the batch hangs in `RUNNING`: the worker or gateway cannot reach Temporal
-(TLS/namespace/API key mismatches). Check identical Temporal env blocks on both
-backend services (`TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, ``TEMPORAL_API_KEY`` /
-mTLS paths — see Temporal env reference).
+If the gateway logs ``tcp connect … TimedOut`` toward Temporal: verify **private
+networking**, that every backend service resolves the **same**
+``TEMPORAL_ADDRESS``, and Temporal listens on ``7233``. For Temporal Cloud instead,
+use the Cloud endpoint plus ``TEMPORAL_NAMESPACE`` / ``TEMPORAL_API_KEY`` (or mTLS).
+
+If the batch hangs in ``RUNNING`` after connect succeeds: check worker logs LLM /
+activity errors; Temporal env vars must match on gateway and worker.
 
 If the FinOps page shows $0: Langfuse hasn't ingested traces yet, or the
 Vertex model is missing from Langfuse's pricing table — see CLAUDE.md

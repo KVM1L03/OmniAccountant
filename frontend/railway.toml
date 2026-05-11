@@ -21,7 +21,8 @@ builder = "NIXPACKS"
 startCommand = "npm start"
 # Requires ``DATABASE_URL`` (Railway Postgres reference) so Prisma schema
 # matches the DB before the app boots.
-preDeployCommand = ["npx", "prisma", "db", "push"]
+# Railway allows at most one array element for preDeployCommand — use a shell string.
+preDeployCommand = "npx prisma db push"
 
 # Next.js serves a 200 at the root once boot is complete. If you add a
 # dedicated /api/health route later, point this at it.
