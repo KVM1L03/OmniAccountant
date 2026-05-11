@@ -87,30 +87,46 @@ Set these in **Service Settings → Variables** for each service. Variables
 marked **`required`** must be set before the service will boot cleanly;
 **`recommended`** keep behaviour sane in production.
 
+Temporal and Langfuse use the **official** Temporal Python SDK and Langfuse
+SDK environment variable names. See:
+
+- Temporal: https://docs.temporal.io/references/client-environment-configuration
+- Langfuse Python: ``LANGFUSE_BASE_URL`` (preferred) or ``LANGFUSE_HOST``
+
 ### `api-gateway`
 
 | Variable | Required | Value |
 |---|---|---|
 | `DATA_DIR` | required | `/app/data` |
-| `TEMPORAL_ADDRESS` | required | `<your-ns>.<account>.tmprl.cloud:7233` |
-| `TEMPORAL_NAMESPACE` | required | from Temporal Cloud |
-| `TEMPORAL_TLS_CERT` / `TEMPORAL_TLS_KEY` | required | TLS material for Temporal Cloud (see Temporal docs) |
-| `LANGFUSE_HOST` | required | `https://cloud.langfuse.com` |
-| `LANGFUSE_PUBLIC_KEY` | required | from Langfuse project |
-| `LANGFUSE_SECRET_KEY` | required | from Langfuse project |
-| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | recommended | `https://cloud.langfuse.com/api/public/otel/v1/traces` |
+| `TEMPORAL_ADDRESS` | required | Temporal Frontend address, e.g. Cloud `namespace.acct.tmprl.cloud:7233` or internal `hostname:7233` |
+| `TEMPORAL_NAMESPACE` | recommended | Omit or `default` for local/docker; **must match your Temporal Cloud namespace** |
+| `TEMPORAL_API_KEY` | Temporal Cloud recommended | Namespace API key (TLS is enabled automatically when set). See Temporal Cloud docs |
+| mTLS alternative | Cloud optional | ``TEMPORAL_TLS_CLIENT_CERT_PATH`` + ``TEMPORAL_TLS_CLIENT_KEY_PATH`` (or ``*_DATA``). See Temporal env reference |
+| `TEMPORAL_CONFIG_FILE` | optional | Path to TOML profiles inside the container; unset = env-only config (recommended for Railway) |
+| `TEMPORAL_PROFILE` | optional | Profile name when using TOML; defaults per SDK |
+| `FRONTEND_ORIGINS` | required in prod demo | Public URL(s) of the Next.js frontend, comma-separated — required for browser CORS (see `api_gateway/main.py`) |
+| `LANGFUSE_BASE_URL` | required if tracing on | `https://cloud.langfuse.com` or self-hosted base URL (`LANGFUSE_HOST` still works, deprecated name) |
+| `LANGFUSE_PUBLIC_KEY` | required if tracing on | from Langfuse project |
+| `LANGFUSE_SECRET_KEY` | required if tracing on | from Langfuse project |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | recommended | e.g. `https://cloud.langfuse.com/api/public/otel/v1/traces` when exporting OTel spans to Langfuse Cloud |
+| `LANGFUSE_TRACING_ENABLED` | optional | `false` to disable Langfuse telemetry (FinOps/charts may stay empty) |
+| `OTEL_SDK_DISABLED` | optional | `true` with tracing off |
 | `DEMO_MODE` | recommended | `true` (recruiter site) or `false` (private/staging) |
 | `DEMO_COOKIE_SECURE` | recommended | `true` (Railway terminates TLS, cookies must be Secure in prod) |
 | `PII_SCRUB_TELEMETRY` | recommended | `true` (default — leave unless debugging) |
-| LLM provider keys | required | `GOOGLE_APPLICATION_CREDENTIALS` (Vertex) **or** `OPENAI_API_KEY` (legacy). See `ai_worker/llm_router.py`. |
+| LLM provider keys | not on gateway API path | Inference runs in ``ai-worker``; gateway only starts workflows and exposes FinOps |
+
+**Incorrect / unsupported names:** do not use `TEMPORAL_TLS_CERT` / `TEMPORAL_TLS_KEY` — use ``TEMPORAL_TLS_CLIENT_CERT_PATH`` and ``TEMPORAL_TLS_CLIENT_KEY_PATH`` per Temporal docs.
 
 ### `ai-worker`
 
-Same as `api-gateway` plus:
+Mirror **Temporal**, **Langfuse/demo**, and **tracing** variables from ``api-gateway`` plus LLM inference:
 
 | Variable | Required | Value |
 |---|---|---|
-| `DATA_DIR` | required | `/app/data` (same volume mount) |
+| `DATA_DIR` | required | `/app/data` (same volume mount as gateway) |
+| ``LLM_PROVIDER`` | required | ``vertex_ai`` or ``api_keys`` — see ``ai_worker/llm_router.py`` |
+| ``GEMINI_API_KEY`` / Vertex / OpenAI… | required | Provider credentials per ``LLM_PROVIDER`` |
 
 ### `frontend`
 
@@ -132,11 +148,9 @@ from the frontend service:
 
 > frontend → Variables → New → "Add Reference" → `DATABASE_URL` ← Postgres plugin
 
-Then in the **frontend** service's "Deploy" tab, add a pre-deploy command:
-
-```
-npx prisma db push
-```
+When using **Railway config-as-code**, ``frontend/railway.toml`` already defines
+``preDeployCommand`` for ``npx prisma db push``. Only add it manually in the
+dashboard if your service ignores the repo config.
 
 This applies `frontend/prisma/schema.prisma` (including the `Batch.sessionId`
 column added for demo isolation) on every deploy. Safe — `db push` is
@@ -154,8 +168,10 @@ open https://<frontend-url>                # dashboard renders
 # Click "Scan & Process Directory" → batch should reach COMPLETED in <60s
 ```
 
-If the batch hangs in `RUNNING`: the worker isn't reaching Temporal. Check
-`TEMPORAL_ADDRESS` + TLS env vars on the `ai-worker` service.
+If the batch hangs in `RUNNING`: the worker or gateway cannot reach Temporal
+(TLS/namespace/API key mismatches). Check identical Temporal env blocks on both
+backend services (`TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, ``TEMPORAL_API_KEY`` /
+mTLS paths — see Temporal env reference).
 
 If the FinOps page shows $0: Langfuse hasn't ingested traces yet, or the
 Vertex model is missing from Langfuse's pricing table — see CLAUDE.md

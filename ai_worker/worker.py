@@ -2,13 +2,11 @@
 
 import asyncio
 import logging
-import os
 
 from dotenv import load_dotenv
 from langfuse import get_client
 from openinference.instrumentation.dspy import DSPyInstrumentor
 from openinference.instrumentation.litellm import LiteLLMInstrumentor
-from temporalio.client import Client
 from temporalio.worker import Worker
 
 from ai_worker.activities import (
@@ -18,6 +16,7 @@ from ai_worker.activities import (
 from ai_worker.llm_router import get_configured_lm
 from ai_worker.otel_scrubber import install_pii_scrubber
 from ai_worker.workflows import BatchReconciliationWorkflow
+from shared.temporal_connect import connect_temporal_client
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,7 +25,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 TASK_QUEUE = "invoice-reconciliation-queue"
-TEMPORAL_ADDRESS = os.environ.get("TEMPORAL_ADDRESS", "localhost:7233")
 
 
 async def main() -> None:
@@ -46,8 +44,7 @@ async def main() -> None:
 
     get_configured_lm()
 
-    client = await Client.connect(TEMPORAL_ADDRESS)
-    logger.info("Connected to Temporal at %s", TEMPORAL_ADDRESS)
+    client = await connect_temporal_client()
 
     worker = Worker(
         client,

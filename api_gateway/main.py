@@ -32,11 +32,11 @@ from api_gateway.demo import (
 from api_gateway.deps import GLOBAL_TENANT, get_tenant_id, is_demo_mode
 from shared.paths import INVOICES_DIR, ensure_data_dirs
 from shared.schemas import FinOpsDailyPoint
+from shared.temporal_connect import connect_temporal_client
 
 logger = logging.getLogger(__name__)
 
 TASK_QUEUE = "invoice-reconciliation-queue"
-TEMPORAL_ADDRESS = os.environ.get("TEMPORAL_ADDRESS", "localhost:7233")
 DEFAULT_FRONTEND_ORIGINS = ("http://localhost:3000",)
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 MB per file
@@ -111,9 +111,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     await asyncio.to_thread(init_db)
 
-    client = await Client.connect(TEMPORAL_ADDRESS)
+    client = await connect_temporal_client()
     app.state.temporal_client = client
-    logger.info("Temporal client connected (%s)", TEMPORAL_ADDRESS)
+    logger.info("Temporal client ready")
 
     langfuse_client = get_client()
     app.state.langfuse = langfuse_client

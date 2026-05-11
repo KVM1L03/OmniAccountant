@@ -308,6 +308,8 @@ LANGFUSE_SALT=...
 LANGFUSE_ENCRYPTION_KEY=...                        # 64 hex chars exactly
 
 TEMPORAL_ADDRESS=temporal:7233
+# Temporal Cloud (optional): TEMPORAL_NAMESPACE, TEMPORAL_API_KEY (or mTLS *_PATH)
+# — see https://docs.temporal.io/references/client-environment-configuration
 ```
 
 ### `frontend/.env.local` (Next.js + Prisma)
