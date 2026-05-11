@@ -37,12 +37,26 @@ logger = logging.getLogger(__name__)
 
 TASK_QUEUE = "invoice-reconciliation-queue"
 TEMPORAL_ADDRESS = os.environ.get("TEMPORAL_ADDRESS", "localhost:7233")
+DEFAULT_FRONTEND_ORIGINS = ("http://localhost:3000",)
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # 25 MB per file
 _UPLOAD_READ_CHUNK = 256 * 1024
 _SAFE_PDF_FILENAME = re.compile(r"^[A-Za-z0-9._-]+\.pdf$", re.IGNORECASE)
 
 _telemetry_cache: TTLCache[int, list[FinOpsDailyPoint]] = TTLCache(maxsize=8, ttl=60)
+
+
+def get_frontend_origins() -> list[str]:
+    """Return allowed browser origins for CORS.
+
+    Railway deployments set ``FRONTEND_ORIGINS`` to their public frontend URL;
+    local development keeps working without extra configuration.
+    """
+    raw_origins = os.environ.get("FRONTEND_ORIGINS")
+    if raw_origins is None:
+        return list(DEFAULT_FRONTEND_ORIGINS)
+    origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+    return origins or list(DEFAULT_FRONTEND_ORIGINS)
 
 
 def _safe_pdf_filename(raw: str | None) -> str:
@@ -135,7 +149,7 @@ app.include_router(demo_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=get_frontend_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
