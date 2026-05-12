@@ -116,31 +116,43 @@ export function UploadWidget({
       </div>
 
       {demoMode ? (
-        <div
-          className="flex flex-col gap-3 sm:flex-row sm:items-center"
-          title="Upload disabled in Demo Mode. Please review the pre-seeded discrepancy cases below."
-          aria-disabled="true"
-        >
-          <span
-            aria-disabled="true"
-            className="inline-flex items-center gap-2 rounded-md bg-[#e6e8ea] px-4 py-2.5 text-sm font-semibold text-slate-400 cursor-not-allowed whitespace-nowrap"
+        <div className="flex flex-col gap-4" aria-disabled="true">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <span
+              aria-disabled="true"
+              className="inline-flex items-center gap-2 rounded-md bg-[#e6e8ea] px-4 py-2.5 text-sm font-semibold text-slate-400 cursor-not-allowed whitespace-nowrap"
+            >
+              <Paperclip className="h-4 w-4" />
+              Select PDFs
+            </span>
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className="inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-[#00502e] to-[#006b3f] px-4 py-2.5 text-sm font-semibold text-white opacity-50 cursor-not-allowed whitespace-nowrap"
+            >
+              <Upload className="h-4 w-4" />
+              Upload Selected Invoices
+            </button>
+          </div>
+          <div
+            className="rounded-lg border border-slate-100 bg-[#f7f9fb] px-4 py-3 text-xs text-[#3f4941] leading-relaxed max-w-2xl"
+            role="note"
           >
-            <Paperclip className="h-4 w-4" />
-            Select PDFs
-          </span>
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            className="inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-[#00502e] to-[#006b3f] px-4 py-2.5 text-sm font-semibold text-white opacity-50 cursor-not-allowed whitespace-nowrap"
-          >
-            <Upload className="h-4 w-4" />
-            Upload Selected Invoices
-          </button>
-          <p className="text-xs text-[#3f4941] italic">
-            Upload disabled in Demo Mode. Please review the pre-seeded
-            discrepancy cases below.
-          </p>
+            <p className="m-0">
+              <span className="font-semibold text-[#191c1e]">
+                Upload disabled in Demo Mode.
+              </span>{" "}
+              Please review the pre-seeded discrepancy cases below. In the
+              header, click{" "}
+              <span className="font-semibold text-[#00502e] whitespace-nowrap">
+                Scan &amp; Process Directory
+              </span>{" "}
+              to automatically reconcile all five demo invoices—results stream
+              into the batch table below and each PDF is routed to approved or
+              discrepancy once processing finishes.
+            </p>
+          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

@@ -226,7 +226,7 @@ export default function DashboardPage() {
             type="button"
             onClick={() => void startBatch()}
             disabled={polling}
-            className="bg-gradient-to-r from-[#00502e] to-[#006b3f] text-white px-6 py-2.5 rounded-md text-sm font-semibold flex items-center gap-2 shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+            className="bg-gradient-to-r from-[#00502e] to-[#006b3f] text-white px-6 py-2.5 rounded-md text-sm font-semibold flex items-center gap-2 shadow-md hover:shadow-lg hover:brightness-[1.03] active:brightness-[0.98] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:brightness-100 transition-all whitespace-nowrap"
           >
             {polling ? (
               <>
