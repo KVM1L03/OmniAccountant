@@ -35,6 +35,65 @@ const DEMO_MODE =
 
 const NO_INVOICES_PENDING = "NO_INVOICES_PENDING";
 
+/** Survives Next.js RSC refresh / remount after server actions (demo batch lock UX). */
+const DEMO_STORAGE_PREFIX = "enterprise_invoice_reconciler:demo:";
+
+function demoBatchDoneStorageKey(sessionId: string): string {
+  return `${DEMO_STORAGE_PREFIX}batch_done:${sessionId}`;
+}
+
+function demoQueueEmptyStorageKey(sessionId: string): string {
+  return `${DEMO_STORAGE_PREFIX}queue_empty:${sessionId}`;
+}
+
+function readDemoBatchDoneFromStorage(sessionId: string | null): boolean {
+  if (typeof window === "undefined" || !sessionId) return false;
+  try {
+    return window.sessionStorage.getItem(demoBatchDoneStorageKey(sessionId)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeDemoBatchDoneToStorage(
+  sessionId: string | null,
+  done: boolean,
+): void {
+  if (typeof window === "undefined" || !sessionId) return;
+  try {
+    const key = demoBatchDoneStorageKey(sessionId);
+    if (done) window.sessionStorage.setItem(key, "1");
+    else window.sessionStorage.removeItem(key);
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+function readDemoQueueEmptyFromStorage(sessionId: string | null): boolean {
+  if (typeof window === "undefined" || !sessionId) return false;
+  try {
+    return (
+      window.sessionStorage.getItem(demoQueueEmptyStorageKey(sessionId)) === "1"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function writeDemoQueueEmptyToStorage(
+  sessionId: string | null,
+  empty: boolean,
+): void {
+  if (typeof window === "undefined" || !sessionId) return;
+  try {
+    const key = demoQueueEmptyStorageKey(sessionId);
+    if (empty) window.sessionStorage.setItem(key, "1");
+    else window.sessionStorage.removeItem(key);
+  } catch {
+    /* quota / private mode */
+  }
+}
+
 function reconcileBatchDetailCode(payload: unknown): string | undefined {
   if (!payload || typeof payload !== "object") return undefined;
   const detail = (payload as { detail?: unknown }).detail;
@@ -111,6 +170,12 @@ export default function DashboardPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!DEMO_MODE || !demoSessionId) return;
+    setDemoBatchDoneLock(readDemoBatchDoneFromStorage(demoSessionId));
+    setDemoQueueEmpty(readDemoQueueEmptyFromStorage(demoSessionId));
+  }, [demoSessionId]);
+
   const handlePageChange = useCallback(
     (page: number) => {
       void loadDashboard(page);
@@ -138,9 +203,14 @@ export default function DashboardPage() {
     if (!DEMO_MODE) return;
     setDemoMinting(true);
     setError(null);
+    const prevSessionId = demoSessionId;
     try {
       const session = await bootstrapFreshDemoSession();
       if (session) {
+        if (prevSessionId) {
+          writeDemoBatchDoneToStorage(prevSessionId, false);
+          writeDemoQueueEmptyToStorage(prevSessionId, false);
+        }
         setDemoSessionId(session.session_id);
         setDemoBatchDoneLock(false);
         setDemoQueueEmpty(false);
@@ -154,7 +224,7 @@ export default function DashboardPage() {
     } finally {
       setDemoMinting(false);
     }
-  }, [loadDashboard]);
+  }, [demoSessionId, loadDashboard]);
 
   const handleClearHistory = useCallback(async () => {
     if (
@@ -174,6 +244,9 @@ export default function DashboardPage() {
   const startBatch = async () => {
     setError(null);
     setDemoQueueEmpty(false);
+    if (DEMO_MODE && demoSessionId) {
+      writeDemoQueueEmptyToStorage(demoSessionId, false);
+    }
     setResult(null);
     setStatus(null);
     stopPolling();
@@ -199,6 +272,9 @@ export default function DashboardPage() {
             isLegacyNoPdfNotFound(payload, res.status))
         ) {
           setDemoQueueEmpty(true);
+          if (demoSessionId) {
+            writeDemoQueueEmptyToStorage(demoSessionId, true);
+          }
           return;
         }
         setError(`HTTP ${res.status}`);
@@ -229,9 +305,12 @@ export default function DashboardPage() {
           if (workflowId) {
             const saveRes = await saveBatchResult(workflowId, data.result);
             if (saveRes.ok) {
+              if (DEMO_MODE && demoSessionId) {
+                writeDemoBatchDoneToStorage(demoSessionId, true);
+                setDemoBatchDoneLock(true);
+              }
               await loadDashboard(1);
               setResult(null);
-              if (DEMO_MODE) setDemoBatchDoneLock(true);
             } else {
               console.error("Failed to persist batch:", saveRes.error);
             }
@@ -248,7 +327,7 @@ export default function DashboardPage() {
 
     intervalRef.current = setInterval(poll, 2000);
     return () => stopPolling();
-  }, [polling, workflowId, stopPolling, loadDashboard]);
+  }, [polling, workflowId, stopPolling, loadDashboard, demoSessionId]);
 
   const demoHeaderBlocked =
     DEMO_MODE && (demoBatchDoneLock || demoQueueEmpty);
