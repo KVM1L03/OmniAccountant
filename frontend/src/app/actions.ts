@@ -6,6 +6,7 @@ import {
   currentTenantId,
   getOrInitDemoSession,
   isDemoMode,
+  mintFreshDemoSession,
   type DemoSession,
 } from "@/lib/demo";
 import type {
@@ -45,6 +46,12 @@ async function tenantFilter(): Promise<{ sessionId?: string }> {
 export async function bootstrapDemoSession(): Promise<DemoSession | null> {
   if (!isDemoMode()) return null;
   return await getOrInitDemoSession();
+}
+
+/** New demo tenant + seeded PDFs; clears any stale demo_session cookie first. */
+export async function bootstrapFreshDemoSession(): Promise<DemoSession | null> {
+  if (!isDemoMode()) return null;
+  return await mintFreshDemoSession();
 }
 
 export async function saveBatchResult(

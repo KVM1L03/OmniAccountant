@@ -92,6 +92,36 @@ export async function getOrInitDemoSession(): Promise<DemoSession> {
   return session;
 }
 
+/**
+ * Clears the demo cookie and POSTs /demo/init so the UI gets a fresh session
+ * id and newly seeded invoice PDFs (after a batch moved prior files away).
+ */
+export async function mintFreshDemoSession(): Promise<DemoSession> {
+  if (!isDemoMode()) {
+    throw new Error("mintFreshDemoSession called with DEMO_MODE off");
+  }
+
+  const jar = await cookies();
+  jar.delete(DEMO_COOKIE, { path: "/" });
+
+  const initRes = await fetch(`${API_GATEWAY_URL}/demo/init`, {
+    method: "POST",
+    cache: "no-store",
+  });
+  if (!initRes.ok) {
+    throw new Error(`Demo init failed: HTTP ${initRes.status}`);
+  }
+  const session = (await initRes.json()) as DemoSession;
+
+  jar.set(DEMO_COOKIE, session.session_id, {
+    httpOnly: true,
+    sameSite: "lax",
+    maxAge: session.ttl_seconds,
+    path: "/",
+  });
+  return session;
+}
+
 /** Tenant id for Prisma scoping. ``"global"`` outside demo mode. */
 export async function currentTenantId(): Promise<string> {
   if (!isDemoMode()) return GLOBAL_TENANT;

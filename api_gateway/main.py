@@ -174,8 +174,14 @@ async def reconcile_batch(
 
     if not invoice_files:
         raise HTTPException(
-            status_code=404,
-            detail=f"No PDF invoice files found in {source_dir}",
+            status_code=409,
+            detail={
+                "code": "NO_INVOICES_PENDING",
+                "message": (
+                    "No PDF invoices pending in this workspace "
+                    "(files may already have been processed and moved)."
+                ),
+            },
         )
 
     # Pass ABSOLUTE PATHS (strings), not file contents — keeps Temporal

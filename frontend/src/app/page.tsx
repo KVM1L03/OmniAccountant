@@ -5,6 +5,7 @@ import { FolderOpen, Loader2 } from "lucide-react";
 
 import {
   bootstrapDemoSession,
+  bootstrapFreshDemoSession,
   clearAllBatches,
   getDashboardStats,
   getRecentBatches,
@@ -32,6 +33,23 @@ const API =
 const DEMO_MODE =
   (process.env.NEXT_PUBLIC_DEMO_MODE ?? "false").toLowerCase() === "true";
 
+const NO_INVOICES_PENDING = "NO_INVOICES_PENDING";
+
+function reconcileBatchDetailCode(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== "object") return undefined;
+  const detail = (payload as { detail?: unknown }).detail;
+  if (!detail || typeof detail !== "object") return undefined;
+  const code = (detail as { code?: unknown }).code;
+  return typeof code === "string" ? code : undefined;
+}
+
+function isLegacyNoPdfNotFound(payload: unknown, status: number): boolean {
+  if (status !== 404) return false;
+  if (!payload || typeof payload !== "object") return false;
+  const detail = (payload as { detail?: unknown }).detail;
+  return typeof detail === "string" && detail.toLowerCase().includes("no pdf");
+}
+
 export default function DashboardPage() {
   const [demoSessionId, setDemoSessionId] = useState<string | null>(null);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
@@ -46,6 +64,9 @@ export default function DashboardPage() {
     null,
   );
   const [reviewTarget, setReviewTarget] = useState<ReviewTarget | null>(null);
+  const [demoBatchDoneLock, setDemoBatchDoneLock] = useState(false);
+  const [demoQueueEmpty, setDemoQueueEmpty] = useState(false);
+  const [demoMinting, setDemoMinting] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const loadDashboard = useCallback(async (page: number) => {
@@ -113,6 +134,28 @@ export default function DashboardPage() {
     setReviewTarget(null);
   }, []);
 
+  const handleFreshDemoSession = useCallback(async () => {
+    if (!DEMO_MODE) return;
+    setDemoMinting(true);
+    setError(null);
+    try {
+      const session = await bootstrapFreshDemoSession();
+      if (session) {
+        setDemoSessionId(session.session_id);
+        setDemoBatchDoneLock(false);
+        setDemoQueueEmpty(false);
+        await loadDashboard(1);
+      }
+    } catch (e) {
+      console.error(e);
+      setError(
+        e instanceof Error ? e.message : "Nie udało się odświeżyć sesji demo.",
+      );
+    } finally {
+      setDemoMinting(false);
+    }
+  }, [loadDashboard]);
+
   const handleClearHistory = useCallback(async () => {
     if (
       !window.confirm("Are you sure you want to clear all batch history?")
@@ -130,6 +173,7 @@ export default function DashboardPage() {
 
   const startBatch = async () => {
     setError(null);
+    setDemoQueueEmpty(false);
     setResult(null);
     setStatus(null);
     stopPolling();
@@ -141,8 +185,26 @@ export default function DashboardPage() {
         method: "POST",
         headers,
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      let payload: unknown;
+      try {
+        payload = await res.json();
+      } catch {
+        payload = undefined;
+      }
+      if (!res.ok) {
+        const code = reconcileBatchDetailCode(payload);
+        if (
+          DEMO_MODE &&
+          (code === NO_INVOICES_PENDING ||
+            isLegacyNoPdfNotFound(payload, res.status))
+        ) {
+          setDemoQueueEmpty(true);
+          return;
+        }
+        setError(`HTTP ${res.status}`);
+        return;
+      }
+      const data = payload as { workflow_id: string };
       setWorkflowId(data.workflow_id);
       setStatus("RUNNING");
       setPolling(true);
@@ -169,6 +231,7 @@ export default function DashboardPage() {
             if (saveRes.ok) {
               await loadDashboard(1);
               setResult(null);
+              if (DEMO_MODE) setDemoBatchDoneLock(true);
             } else {
               console.error("Failed to persist batch:", saveRes.error);
             }
@@ -186,6 +249,9 @@ export default function DashboardPage() {
     intervalRef.current = setInterval(poll, 2000);
     return () => stopPolling();
   }, [polling, workflowId, stopPolling, loadDashboard]);
+
+  const demoHeaderBlocked =
+    DEMO_MODE && (demoBatchDoneLock || demoQueueEmpty);
 
   const resultEntries = result ? Object.values(result) : [];
   const liveApproved = resultEntries.filter((r) => r.status === "APPROVED").length;
@@ -224,8 +290,12 @@ export default function DashboardPage() {
           </div>
           <button
             type="button"
-            onClick={() => void startBatch()}
-            disabled={polling}
+            onClick={() =>
+              void (demoHeaderBlocked
+                ? handleFreshDemoSession()
+                : startBatch())
+            }
+            disabled={polling || demoMinting}
             className="bg-gradient-to-r from-[#00502e] to-[#006b3f] text-white px-6 py-2.5 rounded-md text-sm font-semibold flex items-center gap-2 shadow-md hover:shadow-lg hover:brightness-[1.03] active:brightness-[0.98] cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:brightness-100 transition-all whitespace-nowrap"
           >
             {polling ? (
@@ -233,6 +303,17 @@ export default function DashboardPage() {
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Processing…
               </>
+            ) : demoMinting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Sesja demo…
+              </>
+            ) : demoHeaderBlocked ? (
+              demoQueueEmpty ? (
+                <>Odśwież sesję demo</>
+              ) : (
+                <>Sesja zakończona — uruchom nową sesję demo</>
+              )
             ) : (
               <>
                 <FolderOpen className="h-4 w-4" />
@@ -241,6 +322,29 @@ export default function DashboardPage() {
             )}
           </button>
         </header>
+
+        {DEMO_MODE && demoQueueEmpty ? (
+          <div
+            role="alert"
+            className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-[#3f3420]"
+          >
+            <p className="font-medium text-[#191c1e]">
+              Brak faktur do skanu — odśwież sesję demo.
+            </p>
+            <p className="mt-2 leading-relaxed">
+              Pierwszy przebieg przenosi faktury do archiwum (approved /
+              discrepancy). Drugi przebieg wymaga nowego zestawu plików.
+            </p>
+          </div>
+        ) : null}
+
+        {DEMO_MODE && demoBatchDoneLock && !demoQueueEmpty ? (
+          <p className="mb-6 text-sm text-[#3f4941] max-w-3xl leading-relaxed">
+            Pierwszy przebieg przenosi faktury do archiwum (approved /
+            discrepancy). Drugi przebieg wymaga nowego zestawu plików — użyj
+            przycisku powyżej, aby uruchomić nową sesję demo.
+          </p>
+        ) : null}
 
         <KPICards
           batchesLabel={batchesLabel}
