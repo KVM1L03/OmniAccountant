@@ -11,23 +11,54 @@
 
 ## Demo
 
+### Screen recording
+
 [OmniAccountant.webm](https://github.com/user-attachments/assets/c72284a6-a576-44e6-8454-a99038d2c414)
+
+### Hosted recruiter sandbox
+
+**Live UI:** [frontend-production-14b60.up.railway.app](https://frontend-production-14b60.up.railway.app/)
+
+Walkthrough (demo mode — uploads disabled by design):
+
+1. Load the dashboard; the app bootstraps an isolated demo tenant (`demo_*`) server-side.
+2. Run **Scan & Process Directory** once — five canonical PDFs reconcile; each file is routed into session-scoped **approved** / **discrepancy** folders (same semantics as production “consume once”).
+3. After a successful batch the primary header action switches to **new demo session** — a second scan would see an empty inbox. Mint a new session to re-copy seed PDFs and reset the sandbox.
+4. If the gateway returns **409** with `detail.code: "NO_INVOICES_PENDING"`, that is the typed contract for “nothing left to scan”; the UI surfaces **refresh demo session** instead of guessing from free-form errors.
+
+Frontend expects **`NEXT_PUBLIC_DEMO_MODE=true`** at **build** time and a reachable **`NEXT_PUBLIC_API_URL`** / **`API_GATEWAY_URL`** for browser vs server-action calls respectively.
+
+### API gateway — lightweight rate limiting
+
+Bursty abuse on expensive routes is capped with **[slowapi](https://github.com/laurentS/slowapi)** (`Limiter` + `get_remote_address`): **per-client-IP**, **in-process counters** (fine for a single replica; point `Limiter` at Redis when you scale the gateway horizontally).
+
+| Route | Ceiling |
+|---|---|
+| `POST /reconcile-batch` | 30 / minute |
+| `POST /upload-invoices` | 40 / minute |
+| `POST /demo/init` | 25 / minute |
+| `GET /demo/session` | 120 / minute |
+
+Exceeded limits → **429** with SlowAPI’s standard payload (wire-safe for recruiters and scanners alike).
+
+Implementation lives under `api_gateway/rate_limit.py` with decorators on `main.py` and `demo.py`.
 
 ---
 
 ## Table of contents
 
-1. [Why this exists](#why-this-exists)
-2. [Architecture](#architecture)
-3. [Pipeline — one invoice end-to-end](#pipeline--one-invoice-end-to-end)
-4. [Observability](#observability) — Langfuse, Temporal, OpenTelemetry
-5. [Quick start](#quick-start)
-6. [Configuration](#configuration)
-7. [Step-by-step setup](#step-by-step-setup)
-8. [Testing & CI](#testing--ci)
-9. [Evaluation suite](#evaluation-suite)
-10. [Project structure](#project-structure)
-11. [Architectural invariants](#architectural-invariants)
+1. [Demo](#demo)
+2. [Why this exists](#why-this-exists)
+3. [Architecture](#architecture)
+4. [Pipeline — one invoice end-to-end](#pipeline--one-invoice-end-to-end)
+5. [Observability](#observability) — Langfuse, Temporal, OpenTelemetry
+6. [Quick start](#quick-start)
+7. [Configuration](#configuration)
+8. [Step-by-step setup](#step-by-step-setup)
+9. [Testing & CI](#testing--ci)
+10. [Evaluation suite](#evaluation-suite)
+11. [Project structure](#project-structure)
+12. [Architectural invariants](#architectural-invariants)
 
 ---
 
@@ -449,7 +480,9 @@ Dry-run mode computes the verdict deterministically from `|stated - expected| < 
 ```
 .
 ├── api_gateway/             # FastAPI HTTP layer
-│   └── main.py              # Upload, batch trigger, /telemetry/finops
+│   ├── main.py              # Upload, batch trigger, /telemetry/finops, slowapi hooks
+│   ├── demo.py              # Demo session init + metadata
+│   └── rate_limit.py        # Shared Limiter (in-memory; Redis optional at scale)
 ├── ai_worker/               # Temporal worker
 │   ├── workflows.py         # Deterministic batch workflow
 │   ├── activities.py        # Side-effecting activities
