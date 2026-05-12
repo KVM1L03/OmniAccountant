@@ -127,6 +127,9 @@ export default function DashboardPage() {
   const [demoQueueEmpty, setDemoQueueEmpty] = useState(false);
   const [demoMinting, setDemoMinting] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** Latest session id for polling/startBatch closures (avoids stale null). */
+  const demoSessionIdRef = useRef<string | null>(null);
+  demoSessionIdRef.current = demoSessionId;
 
   const loadDashboard = useCallback(async (page: number) => {
     try {
@@ -244,8 +247,9 @@ export default function DashboardPage() {
   const startBatch = async () => {
     setError(null);
     setDemoQueueEmpty(false);
-    if (DEMO_MODE && demoSessionId) {
-      writeDemoQueueEmptyToStorage(demoSessionId, false);
+    const sid = demoSessionIdRef.current;
+    if (DEMO_MODE && sid) {
+      writeDemoQueueEmptyToStorage(sid, false);
     }
     setResult(null);
     setStatus(null);
@@ -253,7 +257,8 @@ export default function DashboardPage() {
 
     try {
       const headers: Record<string, string> = {};
-      if (demoSessionId) headers["X-Session-Id"] = demoSessionId;
+      if (demoSessionIdRef.current)
+        headers["X-Session-Id"] = demoSessionIdRef.current;
       const res = await fetch(`${API}/reconcile-batch`, {
         method: "POST",
         headers,
@@ -272,8 +277,9 @@ export default function DashboardPage() {
             isLegacyNoPdfNotFound(payload, res.status))
         ) {
           setDemoQueueEmpty(true);
-          if (demoSessionId) {
-            writeDemoQueueEmptyToStorage(demoSessionId, true);
+          const sidEmpty = demoSessionIdRef.current;
+          if (sidEmpty) {
+            writeDemoQueueEmptyToStorage(sidEmpty, true);
           }
           return;
         }
@@ -305,8 +311,9 @@ export default function DashboardPage() {
           if (workflowId) {
             const saveRes = await saveBatchResult(workflowId, data.result);
             if (saveRes.ok) {
-              if (DEMO_MODE && demoSessionId) {
-                writeDemoBatchDoneToStorage(demoSessionId, true);
+              if (DEMO_MODE) {
+                const sid = demoSessionIdRef.current;
+                if (sid) writeDemoBatchDoneToStorage(sid, true);
                 setDemoBatchDoneLock(true);
               }
               await loadDashboard(1);
@@ -327,7 +334,7 @@ export default function DashboardPage() {
 
     intervalRef.current = setInterval(poll, 2000);
     return () => stopPolling();
-  }, [polling, workflowId, stopPolling, loadDashboard, demoSessionId]);
+  }, [polling, workflowId, stopPolling, loadDashboard]);
 
   const demoHeaderBlocked =
     DEMO_MODE && (demoBatchDoneLock || demoQueueEmpty);
