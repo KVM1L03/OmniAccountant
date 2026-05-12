@@ -27,18 +27,17 @@ export default async function ReportsPage() {
             role="status"
             className="rounded-xl border border-amber-200 bg-amber-50 px-6 py-5 text-sm text-[#3f3420] shadow-[0_12px_40px_rgba(25,28,30,0.04)] max-w-2xl"
           >
-            <p className="font-semibold text-[#191c1e]">Tryb demo</p>
+            <p className="font-semibold text-[#191c1e]">Demo mode</p>
             <p className="mt-2 leading-relaxed">
-              Sekcja <span className="font-semibold">Reports</span> nie jest
-              dostępna w tej wersji demonstracyjnej — raporty FinOps i telemetria
-              wiążą się z wdrożeniem obserwowalności (np. Langfuse), którego nie
-              udostępniamy publicznie w sandboxie dla rekruterów.
+              <span className="font-semibold">Reports</span> are not available in
+              this public demo — FinOps telemetry ties into full observability
+              (e.g. Langfuse), which we do not expose in the recruiter sandbox.
             </p>
             <Link
               href="/"
               className="mt-4 inline-flex text-sm font-semibold text-[#00502e] underline underline-offset-4 hover:text-[#003d23]"
             >
-              Wróć do pulpitu
+              Back to dashboard
             </Link>
           </section>
         </div>

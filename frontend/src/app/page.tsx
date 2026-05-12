@@ -240,7 +240,9 @@ export default function DashboardPage() {
     } catch (e) {
       console.error(e);
       setError(
-        e instanceof Error ? e.message : "Nie udało się odświeżyć sesji demo.",
+        e instanceof Error
+          ? e.message
+          : "Could not refresh the demo session.",
       );
     } finally {
       setDemoMinting(false);
@@ -414,13 +416,13 @@ export default function DashboardPage() {
             ) : demoMinting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Sesja demo…
+                Minting demo session…
               </>
             ) : demoHeaderBlocked ? (
               demoQueueEmpty ? (
-                <>Odśwież sesję demo</>
+                <>Refresh demo session</>
               ) : (
-                <>Sesja zakończona — uruchom nową sesję demo</>
+                <>Session complete — start a new demo session</>
               )
             ) : (
               <>
@@ -437,20 +439,21 @@ export default function DashboardPage() {
             className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-[#3f3420]"
           >
             <p className="font-medium text-[#191c1e]">
-              Brak faktur do skanu — odśwież sesję demo.
+              No invoices to scan — refresh the demo session.
             </p>
             <p className="mt-2 leading-relaxed">
-              Pierwszy przebieg przenosi faktury do archiwum (approved /
-              discrepancy). Drugi przebieg wymaga nowego zestawu plików.
+              The first run moves PDFs into approved / discrepancy folders. A
+              second run needs a fresh seeded file set — start a new demo
+              session.
             </p>
           </div>
         ) : null}
 
         {DEMO_MODE && demoBatchDoneLock && !demoQueueEmpty ? (
           <p className="mb-6 text-sm text-[#3f4941] max-w-3xl leading-relaxed">
-            Pierwszy przebieg przenosi faktury do archiwum (approved /
-            discrepancy). Drugi przebieg wymaga nowego zestawu plików — użyj
-            przycisku powyżej, aby uruchomić nową sesję demo.
+            The first run moves PDFs into approved / discrepancy folders. A
+            second run needs new seeded files — use the button above to start a
+            new demo session.
           </p>
         ) : null}
 
