@@ -27,7 +27,7 @@ import uuid
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 from pydantic import BaseModel, ConfigDict, Field
@@ -38,6 +38,7 @@ from api_gateway.deps import (
     get_tenant_id,
     is_demo_mode,
 )
+from api_gateway.rate_limit import limiter
 from shared.paths import (
     ERP_DB_PATH as _DB_PATH,
     INVOICES_DIR as _INVOICES_DIR,
@@ -188,7 +189,8 @@ def _expected_status(pdf_total: float, expected_total: float) -> str:
 
 
 @router.post("/init", response_model=DemoInitResponse, status_code=status.HTTP_201_CREATED)
-async def init_demo_session(response: Response) -> DemoInitResponse:
+@limiter.limit("25/minute")
+async def init_demo_session(request: Request, response: Response) -> DemoInitResponse:
     """Mint a new demo session, seed its 5 invoices, and set a session cookie.
 
     Refuses to run unless ``DEMO_MODE=true`` — protects local dev from
@@ -254,7 +256,9 @@ async def init_demo_session(response: Response) -> DemoInitResponse:
 
 
 @router.get("/session", response_model=DemoInitResponse | None)
+@limiter.limit("120/minute")
 async def get_demo_session(
+    request: Request,
     tenant_id: Annotated[str, Depends(get_tenant_id)],
 ) -> DemoInitResponse | None:
     """Return the current session metadata if a valid demo cookie is set."""

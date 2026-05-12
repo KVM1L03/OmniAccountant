@@ -17,6 +17,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from cachetools import TTLCache
 from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from langfuse import Langfuse, get_client
 from langfuse.api.core.api_error import ApiError
 from pydantic import ValidationError
@@ -30,6 +32,7 @@ from api_gateway.demo import (
     router as demo_router,
 )
 from api_gateway.deps import GLOBAL_TENANT, get_tenant_id, is_demo_mode
+from api_gateway.rate_limit import limiter
 from shared.paths import INVOICES_DIR, ensure_data_dirs
 from shared.schemas import FinOpsDailyPoint
 from shared.temporal_connect import connect_temporal_client
@@ -145,6 +148,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Enterprise Invoice Reconciler", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 app.include_router(demo_router)
 
 app.add_middleware(
@@ -164,6 +170,7 @@ def _session_invoice_dir(tenant_id: str) -> Path:
 
 
 @app.post("/reconcile-batch", status_code=202)
+@limiter.limit("30/minute")
 async def reconcile_batch(
     request: Request,
     tenant_id: Annotated[str, Depends(get_tenant_id)],
@@ -208,7 +215,9 @@ async def reconcile_batch(
 
 
 @app.post("/upload-invoices", status_code=201)
+@limiter.limit("40/minute")
 async def upload_invoices(
+    request: Request,
     tenant_id: Annotated[str, Depends(get_tenant_id)],
     files: list[UploadFile] = File(...),
 ) -> dict:
